@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iostream>
 
+#include <lldb/API/SBDebugger.h>
+
 #include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -43,7 +45,7 @@ Lldbmi2::Lldbmi2()
 
 void Lldbmi2::help()
 {
-    std::cerr << lldbmi2Prompt <<
+    std::cerr << lldbmi2Prompt << std::endl <<
 R"(Description:
    A MI2 interface to LLDB
 Authors:
@@ -116,8 +118,9 @@ int main(int argc, char** argv, char** envp) {
     unsigned int logmask = LOG_ALL;
 
     gpstate->ptyfd = EOF;
-    gpstate->gdbPrompt = "GNU gdb (GDB) 7.7.1\n";
-    snprintf(gpstate->lldbmi2Prompt, NAME_MAX, "lldbmi2 version %s\n", LLDBMI2_VERSION);
+    gpstate->gdbPrompt = "GNU gdb (GDB) 7.7.1";
+    snprintf(gpstate->lldbmi2Prompt, NAME_MAX, "lldbmi2 version %s", LLDBMI2_VERSION);
+
     gpstate->cdtbufferB.grow(BIG_LINE_MAX);
 
     limits.frames_max = FRAMES_MAX;
@@ -202,8 +205,7 @@ int main(int argc, char** argv, char** envp) {
 
     // return gdb version if --version
     if (isVersion) {
-        writetocdt(gpstate->gdbPrompt);
-        writetocdt(gpstate->lldbmi2Prompt);
+        cdtprintf ("%s, %s, %s\n", gpstate->gdbPrompt, gpstate->lldbmi2Prompt, SBDebugger::GetVersionString());
         return EXIT_SUCCESS;
     }
     // check if --interpreter mi2
@@ -1286,8 +1288,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
     else if (strcmp(cc.argv[0], "-gdb-exit") == 0) {
         terminateProcess(AND_EXIT);
     } else if (strcmp(cc.argv[0], "-gdb-version") == 0) {
-        cdtprintf("~\"%s\"\n", gdbPrompt);
-        cdtprintf("~\"%s\"\n", lldbmi2Prompt);
+        cdtprintf ("~\"%s, %s, %s\\n\"\n", gdbPrompt, lldbmi2Prompt, SBDebugger::GetVersionString());
         cdtprintf("%d^done\n(gdb)\n", cc.sequence);
     } else if (strcmp(cc.argv[0], "-list-features") == 0) {
         cdtprintf(
