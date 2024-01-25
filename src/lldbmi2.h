@@ -47,7 +47,8 @@ typedef struct {
 
 // dynamic context
 typedef struct {
-	int  ptyfd;
+	int  ptyfd = -1;
+	int  cdtptyfd = -1;
 	bool eof;
 	bool procstop;
 	bool isrunning;

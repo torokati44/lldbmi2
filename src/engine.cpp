@@ -192,6 +192,7 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 		if (strcmp(pstate->cdtptyname,"%s") == 0)
 			pstate->ptyfd = EOF;
 		else {
+			logprintf (LOG_NONE, "ptyname=%s\n", pstate->cdtptyname);
 			pstate->ptyfd = open (pstate->cdtptyname, O_RDWR);
 			// set pty in raw mode
 			struct termios t;

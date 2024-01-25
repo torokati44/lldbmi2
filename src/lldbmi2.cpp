@@ -15,6 +15,11 @@
 #include <string.h>
 #include <iostream>
 
+
+#include <string.h>
+#include <termios.h>
+
+
 #include <lldb/API/SBDebugger.h>
 
 #include "lldbmi2.h"
@@ -38,7 +43,7 @@ void help (STATE *pstate)
 	fprintf (stderr, "   lldbmi2 --version [options]\n");
 	fprintf (stderr, "   lldbmi2 --interpreter mi2 [options]\n");
 	fprintf (stderr, "Arguments:\n");
-	fprintf (stderr, "   --version:           Return GDB's version (GDB 7.7.1) and exits.\n");
+	fprintf (stderr, "   --version:           Return GDB's version (GDB 7.12.1) and exits.\n");
 	fprintf (stderr, "   --interpreter mi2:   Standard mi2 interface.\n");
 	fprintf (stderr, "   --interpreter=mi2:   Standard mi2 interface.\n");
 	fprintf (stderr, "Options:\n");
@@ -70,10 +75,11 @@ main (int argc, char **argv, char **envp)
 	int isVersion=0, isInterpreter=0;
 	const char *testCommand=NULL;
 	int  isLog=0;
-	unsigned int logmask=LOG_ALL;
+	unsigned int logmask=LOG_DEV;
 
 	state.ptyfd = EOF;
-	state.gdbPrompt = "GNU gdb (GDB) 7.7.1";
+	state.cdtptyfd = EOF;
+	state.gdbPrompt = "GNU gdb (GDB) 7.12.1";
 	snprintf (state.lldbmi2Prompt, NAME_MAX, "lldbmi2 version %s", LLDBMI2_VERSION);
 	state.cdtbufferB.grow(BIG_LINE_MAX);
 
@@ -81,6 +87,13 @@ main (int argc, char **argv, char **envp)
 	limits.children_max = CHILDREN_MAX;
 	limits.walk_depth_max = WALK_DEPTH_MAX;
 	limits.change_depth_max = CHANGE_DEPTH_MAX;
+
+	// create a log filename from program name and open log file
+	if (true) {
+		setlogfile (state.logfilename, sizeof(state.logfilename), argv[0], "lldbmi2.log");
+		openlogfile (state.logfilename);
+		setlogmask (logmask);
+	}
 
 	// get args
 	for (narg=0; narg<argc; narg++) {
@@ -137,16 +150,35 @@ main (int argc, char **argv, char **envp)
 			if (++narg<argc)
 				sscanf (logarg(argv[narg]), "%d", &limits.change_depth_max);
 		}
-	}
+		else if (strcmp (argv[narg],"-ex") == 0) {
+			if (++narg<argc) {
+				if (strncmp(argv[narg], "new-ui", strlen("new-ui")) == 0) {
+					sscanf(argv[narg], "new-ui mi %s", state.cdtptyname);
+					logprintf (LOG_INFO, "pty %s\n", state.cdtptyname);
+					
+					state.cdtptyfd = open (state.cdtptyname, O_RDWR);
 
-	// create a log filename from program name and open log file
-	if (isLog) {
-		if (limits.istest)
-			setlogfile (state.logfilename, sizeof(state.logfilename), argv[0], "lldbmi2t.log");
-		else
-			setlogfile (state.logfilename, sizeof(state.logfilename), argv[0], "lldbmi2.log");
-		openlogfile (state.logfilename);
-		setlogmask (logmask);
+					// set pty in raw mode
+					struct termios t;
+					if (tcgetattr(state.cdtptyfd, &t) != -1) {
+						logprintf (LOG_INFO, "setting pty\n");
+						// Noncanonical mode, disable signals, extended input processing, and echoing
+						t.c_lflag &= ~(ICANON | ISIG | IEXTEN | ECHO);
+						// Disable special handling of CR, NL, and BREAK.
+						// No 8th-bit stripping or parity error handling
+						// Disable START/STOP output flow control
+						t.c_iflag &= ~(BRKINT | ICRNL | IGNBRK | IGNCR | INLCR |
+								INPCK | ISTRIP | IXON | PARMRK);
+						// Disable all output processing
+						t.c_oflag &= ~OPOST;
+						t.c_cc[VMIN] = 1;		// Character-at-a-time input
+						t.c_cc[VTIME] = 0;		// with blocking
+						int ret = tcsetattr(state.cdtptyfd, TCSAFLUSH, &t);
+						logprintf (LOG_INFO, "setting pty %d\n", ret);
+					}
+				}
+			}
+		}
 	}
 
 	// log program args
@@ -175,12 +207,14 @@ main (int argc, char **argv, char **envp)
 		help (&state);
 		return EXIT_FAILURE;
 	}
-
+	
 	initializeSB (&state);
 	signal (SIGINT, signalHandler);
 	signal (SIGSTOP, signalHandler);
 
+	logprintf (LOG_TRACE, "printing prompt\n");
 	cdtprintf ("(gdb)\n");
+	write(1, "(gdb)\n", 6);
 
 	// main loop
 	FD_ZERO (&set);
@@ -188,43 +222,68 @@ main (int argc, char **argv, char **envp)
 		if (limits.istest)
 			logprintf (LOG_NONE, "main loop\n");
 		// get inputs
-		timeout.tv_sec  = 0;
-		timeout.tv_usec = 200000;
+		timeout.tv_sec  = 1;
+		timeout.tv_usec = 0;
+		int nfds = STDIN_FILENO+1;
 		// check command from CDT
 		FD_SET (STDIN_FILENO, &set);
+		if (state.cdtptyfd != EOF) {
+			// check data from Eclipse's console
+			FD_SET (state.cdtptyfd, &set);
+			logprintf (LOG_TRACE, "select from both\n");
+			nfds = std::max(nfds, state.cdtptyfd+1);
+		}
+		
 		if (state.ptyfd != EOF) {
 			// check data from Eclipse's console
 			FD_SET (state.ptyfd, &set);
-			select(state.ptyfd+1, &set, NULL, NULL, &timeout);
+			logprintf (LOG_TRACE, "select from both\n");
+			nfds = std::max(nfds, state.ptyfd+1);
 		}
-		else
-			select(STDIN_FILENO+1, &set, NULL, NULL, &timeout);
-		if (FD_ISSET(STDIN_FILENO, &set) && !state.eof && !limits.istest) {
-			logprintf (LOG_NONE, "read in\n");
+		
+		select(nfds, &set, NULL, NULL, &timeout);
+	
+		if (FD_ISSET(STDIN_FILENO, &set) && !state.eof) {
+			logprintf (LOG_TRACE, "read in\n");
 			chars = read (STDIN_FILENO, commandLine, sizeof(commandLine)-1);
-			logprintf (LOG_NONE, "read out %d chars\n", chars);
+			logprintf (LOG_TRACE, "read out %d chars\n", chars);
 			if (chars>0) {
 				commandLine[chars] = '\0';
+				
 				while (fromCDT (&state,commandLine,sizeof(commandLine)) == MORE_DATA)
 					commandLine[0] = '\0';
 			}
 			else
 				state.eof = true;
 		}
-		if (state.ptyfd!=EOF && state.isrunning) {			// input from user to program
-			if (FD_ISSET(state.ptyfd, &set) && !state.eof && !limits.istest) {
-				logprintf (LOG_NONE, "pty read in\n");
-				chars = read (state.ptyfd, consoleLine, sizeof(consoleLine)-1);
-				logprintf (LOG_NONE, "pty read out %d chars\n", chars);
+		if (state.cdtptyfd!=EOF) {			// input from user to program
+			if (FD_ISSET(state.cdtptyfd, &set) && !state.eof && !limits.istest) {
+				logprintf (LOG_TRACE, "cdt pty read in\n");
+				chars = read (state.cdtptyfd, consoleLine, sizeof(consoleLine)-1);
+				logprintf (LOG_TRACE, "cdt pty read out %d chars\n", chars);
 				if (chars>0) {
-					logprintf (LOG_PROG_OUT, "pty read %d chars\n", chars);
+					logprintf (LOG_PROG_OUT, "cdt pty read %d chars: '%s'\n", chars, consoleLine);
 					consoleLine[chars] = '\0';
-					SBProcess process = state.process;
-					if (process.IsValid())
-						process.PutSTDIN (consoleLine, chars);
+					
+				while (fromCDT (&state,consoleLine,sizeof(consoleLine)) == MORE_DATA)
+					consoleLine[0] = '\0';
 				}
 			}
 		}
+		
+		if (state.ptyfd!=EOF) {			// input from user to program
+			if (FD_ISSET(state.ptyfd, &set) && !state.eof && !limits.istest) {
+				logprintf (LOG_TRACE, "pty read in\n");
+				chars = read (state.ptyfd, consoleLine, sizeof(consoleLine)-1);
+				logprintf (LOG_TRACE, "pty read out %d chars\n", chars);
+				if (chars>0) {
+					logprintf (LOG_PROG_OUT, "pty read %d chars: '%s'\n", chars, consoleLine);
+					consoleLine[chars] = '\0';
+				}
+			}
+		}
+		
+		
 		// execute test command if test mode
 		if (!state.eof && limits.istest && !state.isrunning) {
 			if ((testCommand=getTestCommand ())!=NULL) {
@@ -261,9 +320,9 @@ logarg (const char *arg) {
 void
 writetocdt (const char *line)
 {
-	logprintf (LOG_NONE, "writetocdt (...)\n", line);
+	logprintf (LOG_TRACE, "writetocdt '%s'\n", line);
 	logdata (LOG_CDT_OUT, line, strlen(line));
-	writelog (STDOUT_FILENO, line, strlen(line));
+	writelog (state.cdtptyfd > 0 ? state.cdtptyfd : STDOUT_FILENO, line, strlen(line));
 }
 
 void
