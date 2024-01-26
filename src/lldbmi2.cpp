@@ -248,10 +248,13 @@ main (int argc, char **argv, char **envp)
 			chars = read (STDIN_FILENO, commandLine, sizeof(commandLine)-1);
 			logprintf (LOG_TRACE, "read out %d chars\n", chars);
 			if (chars>0) {
-				commandLine[chars] = '\0';
+				commandLine[chars-1] = '\0';
+				SBCommandInterpreter interp = state.debugger.GetCommandInterpreter();
+				SBCommandReturnObject result;
+				ReturnStatus retcode = interp.HandleCommand(commandLine, result);
+				printf("commandLine: '%s', %d\n", commandLine, retcode);
 				
-				while (fromCDT (&state,commandLine,sizeof(commandLine)) == MORE_DATA)
-					commandLine[0] = '\0';
+				write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
 			}
 			else
 				state.eof = true;
