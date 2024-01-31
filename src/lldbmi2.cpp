@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <termios.h>
+#include "linenoise.h"
 
 
 #include <lldb/API/SBDebugger.h>
@@ -67,11 +68,9 @@ int
 main (int argc, char **argv, char **envp)
 {
 	int narg;
-	fd_set set;
 	char commandLine[BIG_LINE_MAX];		// data from cdt
 	char consoleLine[LINE_MAX];			// data from eclipse's console
 	long chars;
-	struct timeval timeout;
 	int isVersion=0, isInterpreter=0;
 	const char *testCommand=NULL;
 	int  isLog=0;
@@ -213,54 +212,90 @@ main (int argc, char **argv, char **envp)
 	signal (SIGSTOP, signalHandler);
 
 	logprintf (LOG_TRACE, "printing prompt\n");
+	sleep(2);
 	cdtprintf ("(gdb)\n");
-	write(1, "(gdb)\n", 6);
+	const char *prompt = state.debugger.GetPrompt();
+
+		
+		 /* Asynchronous mode using the multiplexing API: wait for
+        * data on stdin, and simulate async data coming from some source
+        * using the select(2) timeout. */
+        struct linenoiseState ls;
+        char buf[1024];
+        char *line = linenoiseEditMore;
+        linenoiseEditStart(&ls,-1,-1,buf,sizeof(buf), prompt);
 
 	// main loop
-	FD_ZERO (&set);
 	while (!state.eof) {
 		if (limits.istest)
 			logprintf (LOG_NONE, "main loop\n");
-		// get inputs
-		timeout.tv_sec  = 1;
-		timeout.tv_usec = 0;
+		
+		
+		
+
+		fd_set readfds;
+		FD_ZERO(&readfds);
+
+		struct timeval tv;
+		tv.tv_sec = 0; // 0.1 sec timeout
+		tv.tv_usec = 100000;
+		
+	
 		int nfds = STDIN_FILENO+1;
 		// check command from CDT
-		FD_SET (STDIN_FILENO, &set);
+		FD_SET (STDIN_FILENO, &readfds);
 		if (state.cdtptyfd != EOF) {
 			// check data from Eclipse's console
-			FD_SET (state.cdtptyfd, &set);
+			FD_SET (state.cdtptyfd, &readfds);
 			logprintf (LOG_TRACE, "select from both\n");
 			nfds = std::max(nfds, state.cdtptyfd+1);
 		}
 		
 		if (state.ptyfd != EOF) {
 			// check data from Eclipse's console
-			FD_SET (state.ptyfd, &set);
+			FD_SET (state.ptyfd, &readfds);
 			logprintf (LOG_TRACE, "select from both\n");
 			nfds = std::max(nfds, state.ptyfd+1);
 		}
 		
-		select(nfds, &set, NULL, NULL, &timeout);
-	
-		if (FD_ISSET(STDIN_FILENO, &set) && !state.eof) {
-			logprintf (LOG_TRACE, "read in\n");
-			chars = read (STDIN_FILENO, commandLine, sizeof(commandLine)-1);
-			logprintf (LOG_TRACE, "read out %d chars\n", chars);
-			if (chars>0) {
-				commandLine[chars-1] = '\0';
-				SBCommandInterpreter interp = state.debugger.GetCommandInterpreter();
-				SBCommandReturnObject result;
-				ReturnStatus retcode = interp.HandleCommand(commandLine, result);
-				printf("commandLine: '%s', %d\n", commandLine, retcode);
+		int retval = select(nfds, &readfds, NULL, NULL, &tv);
+		
+		
+		if (FD_ISSET(STDIN_FILENO, &readfds) && !state.eof) {
+			line = linenoiseEditFeed(&ls);
+			/* A NULL return means: line editing is continuing.
+			* Otherwise the user hit enter or stopped editing
+			* (CTRL+C/D). */
+			if (line != linenoiseEditMore) {
 				
-				write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
+				linenoiseEditStop(&ls);
+				
+				logprintf (LOG_TRACE, "read in\n");
+				chars = strlen(line);
+				logprintf (LOG_TRACE, "read out %d chars\n", chars);
+				if (chars>0) {
+					SBCommandInterpreter interp = state.debugger.GetCommandInterpreter();
+					SBCommandReturnObject result;
+					ReturnStatus retcode = interp.HandleCommand(line, result);
+					
+					write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
+					write(STDERR_FILENO, result.GetError(), result.GetErrorSize());			
+				}
+				else
+					state.eof = true;
+				
+				free(line);
+				linenoiseEditStart(&ls,-1,-1,buf,sizeof(buf), prompt);
+
 			}
-			else
-				state.eof = true;
 		}
+        
+        if (line == NULL) exit(0); /* Ctrl+D/C. */
+		
+		
+	
 		if (state.cdtptyfd!=EOF) {			// input from user to program
-			if (FD_ISSET(state.cdtptyfd, &set) && !state.eof && !limits.istest) {
+			if (FD_ISSET(state.cdtptyfd, &readfds) && !state.eof && !limits.istest) {
 				logprintf (LOG_TRACE, "cdt pty read in\n");
 				chars = read (state.cdtptyfd, consoleLine, sizeof(consoleLine)-1);
 				logprintf (LOG_TRACE, "cdt pty read out %d chars\n", chars);
@@ -275,7 +310,7 @@ main (int argc, char **argv, char **envp)
 		}
 		
 		if (state.ptyfd!=EOF) {			// input from user to program
-			if (FD_ISSET(state.ptyfd, &set) && !state.eof && !limits.istest) {
+			if (FD_ISSET(state.ptyfd, &readfds) && !state.eof && !limits.istest) {
 				logprintf (LOG_TRACE, "pty read in\n");
 				chars = read (state.ptyfd, consoleLine, sizeof(consoleLine)-1);
 				logprintf (LOG_TRACE, "pty read out %d chars\n", chars);
