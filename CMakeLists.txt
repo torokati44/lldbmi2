@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Set project name and version
-project(lldbmi2 VERSION 0.1.0 LANGUAGES CXX)
+project(lldbmi2 VERSION 0.1.0 LANGUAGES C CXX)
 
 # Define options
 option(BUILD_TESTS "Build the test programs" OFF)
@@ -50,9 +50,10 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/generated)
 
 # Add source files
 file(GLOB_RECURSE lldbmi2_sources ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE extern_sources ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
 
 # Add executable
-add_executable(${PROJECT_NAME} ${lldbmi2_sources})
+add_executable(${PROJECT_NAME} ${lldbmi2_sources} ${extern_sources})
 
 # Conditional linking and compiler flags
 if(UNLINKED)

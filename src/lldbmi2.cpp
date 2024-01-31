@@ -9,6 +9,7 @@
 
 #include <string.h>
 #include <termios.h>
+#include "linenoise.h"
 
 #include <lldb/API/SBDebugger.h>
 
@@ -249,49 +250,76 @@ int main(int argc, char** argv, char** envp) {
 
     logprintf(LOG_TRACE, "printing prompt\n");
     cdtprintf("(gdb)\n");
-    write(1, "(gdb)\n", 6);
+    const char *prompt = gpstate->debugger.GetPrompt();
 
-    fd_set set;
-    FD_ZERO(&set);
+    /* Asynchronous mode using the multiplexing API: wait for
+    * data on stdin, and simulate async data coming from some source
+    * using the select(2) timeout. */
+    struct linenoiseState ls;
+    char buf[1024];
+    char *line = linenoiseEditMore;
+    linenoiseEditStart(&ls,-1,-1,buf,sizeof(buf), prompt);
+
     // main loop
     while (!gpstate->eof) {
-        // get inputs
-        timeval timeout;
-        timeout.tv_sec = 1;
-        timeout.tv_usec = 0;
+
+        fd_set readfds;
+        FD_ZERO(&readfds);
+
+        struct timeval tv;
+        tv.tv_sec = 0; // 0.1 sec timeout
+        tv.tv_usec = 100000;
+
         int nfds = STDIN_FILENO+1;
         // check command from CDT
-        FD_SET(STDIN_FILENO, &set);
+        FD_SET(STDIN_FILENO, &readfds);
         if (gpstate->cdtptyfd != EOF) {
             // check data from Eclipse's console
-            FD_SET (gpstate->cdtptyfd, &set);
+            FD_SET (gpstate->cdtptyfd, &readfds);
             logprintf (LOG_TRACE, "select from both\n");
             nfds = std::max(nfds, gpstate->cdtptyfd+1);
         }
         if (gpstate->ptyfd != EOF) {
             // check data from Eclipse's console
-            FD_SET(gpstate->ptyfd, &set);
+            FD_SET(gpstate->ptyfd, &readfds);
             logprintf (LOG_TRACE, "select from both\n");
             nfds = std::max(nfds, gpstate->ptyfd+1);
         }
 
-        select(nfds, &set, NULL, NULL, &timeout);
+        int retval = select(nfds, &readfds, NULL, NULL, &tv);
 
-        if (FD_ISSET(STDIN_FILENO, &set) && !gpstate->eof) {
-            long chars = read(STDIN_FILENO, commandLine, sizeof(commandLine) - 1);
-            if (chars > 0) {
-                commandLine[chars-1] = '\0';
-                SBCommandInterpreter interp = gpstate->debugger.GetCommandInterpreter();
-                SBCommandReturnObject result;
-                ReturnStatus retcode = interp.HandleCommand(commandLine, result);
+        if (FD_ISSET(STDIN_FILENO, &readfds) && !gpstate->eof) {
+            line = linenoiseEditFeed(&ls);
+            /* A NULL return means: line editing is continuing.
+            * Otherwise the user hit enter or stopped editing
+            * (CTRL+C/D). */
+            if (line != linenoiseEditMore) {
+                
+                linenoiseEditStop(&ls);
+                
+                long chars = strlen(line);
+                if (chars>0) {
+                    SBCommandInterpreter interp = gpstate->debugger.GetCommandInterpreter();
+                    SBCommandReturnObject result;
+                    ReturnStatus retcode = interp.HandleCommand(line, result);
+                    
+                    write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
+                    write(STDERR_FILENO, result.GetError(), result.GetErrorSize());            
+                }
+                else
+                    gpstate->eof = true;
+                 
+                free(line);
+                linenoiseEditStart(&ls,-1,-1,buf,sizeof(buf), prompt);
 
-                write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
-            } else
-                gpstate->eof = true;
+            } 
         }
+
+        if (line == NULL) exit(0); /* Ctrl+D/C. */
+
         char consoleLine[LINE_MAX];            // data from eclipse's console
         if (gpstate->cdtptyfd!=EOF) {            // input from user to program
-            if (FD_ISSET(gpstate->cdtptyfd, &set) && !gpstate->eof && !limits.istest) {
+            if (FD_ISSET(gpstate->cdtptyfd, &readfds) && !gpstate->eof && !limits.istest) {
                 logprintf (LOG_TRACE, "cdt pty read in\n");
                 long chars = read (gpstate->cdtptyfd, consoleLine, sizeof(consoleLine)-1);
                 logprintf (LOG_TRACE, "cdt pty read out %d chars\n", chars);
@@ -308,7 +336,7 @@ int main(int argc, char** argv, char** envp) {
 
         if (gpstate->ptyfd!=EOF) {            // input from user to program
 
-            if (FD_ISSET(gpstate->ptyfd, &set) && !gpstate->eof && !limits.istest) {
+            if (FD_ISSET(gpstate->ptyfd, &readfds) && !gpstate->eof && !limits.istest) {
                 char consoleLine[LINE_MAX]; // data from eclipse's console
                 long chars = read(gpstate->ptyfd, consoleLine, sizeof(consoleLine) - 1);
                 if (chars > 0) {
