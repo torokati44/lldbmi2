@@ -209,7 +209,7 @@ main (int argc, char **argv, char **envp)
 	
 	initializeSB (&state);
 	signal (SIGINT, signalHandler);
-	signal (SIGSTOP, signalHandler);
+	//signal (SIGSTOP, signalHandler);
 
 	logprintf (LOG_TRACE, "printing prompt\n");
 	sleep(2);

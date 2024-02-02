@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
-#include <termios.h>
+//#include <termios.h>
 #include <cstdlib>
 
 #include "lldbmi2.h"
@@ -195,6 +195,7 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 			logprintf (LOG_NONE, "ptyname=%s\n", pstate->cdtptyname);
 			pstate->ptyfd = open (pstate->cdtptyname, O_RDWR);
 			// set pty in raw mode
+                        #if 0
 			struct termios t;
 			if (tcgetattr(pstate->ptyfd, &t) != -1) {
 				// Noncanonical mode, disable signals, extended input processing, and echoing
@@ -209,7 +210,8 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 				t.c_cc[VMIN] = 1;		// Character-at-a-time input
 				t.c_cc[VTIME] = 0;		// with blocking
 				tcsetattr(pstate->ptyfd, TCSAFLUSH, &t);
-		    }
+		        }
+                        #endif
 		}
 		logprintf (LOG_NONE, "pty = %d\n", pstate->ptyfd);
 		cdtprintf ("%d^done\n(gdb)\n", cc.sequence);

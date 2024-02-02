@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -49,6 +49,9 @@ file(GLOB_RECURSE extern_sources ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c)
 
 add_executable(${PROJECT_NAME} ${lldbmi2_sources} ${extern_sources})
 target_link_libraries(${PROJECT_NAME} ${LLDB_LIBRARY})
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} wsock32 ws2_32)
+endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -pthread")
 

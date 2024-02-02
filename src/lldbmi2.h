@@ -9,6 +9,16 @@ using namespace lldb;
 // PATH_MAX = 1024
 // LINE_MAX = 2048
 // NAME_MAX = 255
+#ifdef WIN32
+    #include <winsock.h>
+    #define NAME_MAX 255
+    #define LINE_MAX 2048
+    /* Create a realpath replacement macro for when compiling under mingw
+    * Based upon https://stackoverflow.com/questions/45124869/cross-platform-alternative-to-this-realpath-definition
+    */
+    #define realpath(N,R) _fullpath((R),(N),PATH_MAX)
+#endif
+
 #ifdef __APPLE__
 #include <sys/syslimits.h>
 #else
