@@ -585,12 +585,12 @@ formatSummary (StringB &summarydescB, SBValue var)
 	//	value = "HFG\123klj\b"
 	//	value={2,5,7,0 <repeat 5 times>, 7}
 	//	value = {{a=1,b=0x33},...{a=1,b=2}}
-	const char *varsummary;
+	const char *varsummary = var.GetSummary();
 	SBType vartype = var.GetType();
 	logprintf (LOG_DEBUG, "formatSummary: Var=%-5s: children=%-2d, typeclass=%-10s, basictype=%-10s, bytesize=%-2d, Pointee: typeclass=%-10s, basictype=%-10s, bytesize=%-2d\n",
 				getName(var), var.GetNumChildren(), getNameForTypeClass(vartype.GetTypeClass()), getNameForBasicType(vartype.GetBasicType()), vartype.GetByteSize(),
 				getNameForTypeClass(vartype.GetPointeeType().GetTypeClass()), getNameForBasicType(vartype.GetPointeeType().GetBasicType()), vartype.GetPointeeType().GetByteSize());
-	if ((varsummary=var.GetSummary()) != NULL) {				// string
+	if (varsummary && *varsummary == '"') {				// string
 		// copy varsummary in summarydescB.exclude heading & trainling apostrophe. escape inner apostrophes if required
 		for (const char *ps=varsummary+1; *ps&&*(ps+1); ps++) {
 			if (*ps=='"' && *(ps-1)!='\\')
@@ -615,6 +615,10 @@ formatSummary (StringB &summarydescB, SBValue var)
 	if (vartypeclass==eTypeClassClass || vartypeclass==eTypeClassStruct || vartypeclass==eTypeClassUnion || vartype.IsArrayType()) {
 		const char *separator="";
 		static StringB vardescB(VALUE_MAX);
+		if (varsummary && *varsummary) {
+			summarydescB.append(varsummary);
+			summarydescB.append(" ");
+		}
 		summarydescB.append("{");
 		for (int ichild=0; ichild<min(numchildren,limits.children_max); ichild++) {
 			SBValue child = var.GetChildAtIndex(ichild);
