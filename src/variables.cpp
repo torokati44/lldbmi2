@@ -1,6 +1,7 @@
 
 #include "lldbmi2.h"
 #include "log.h"
+#include <string>
 #include "variables.h"
 #include "names.h"
 #include <ctype.h>
@@ -418,11 +419,12 @@ char *
 formatChildrenList (StringB &childrendescB, SBValue var, char *expression, int threadindexid, int &varnumchildren)
 {
 	logprintf (LOG_TRACE, "formatChildrenList (0x%x, 0x%x, %s, %d, %d)\n", &childrendescB, &var, expression, threadindexid, varnumchildren);
+	var.SetPreferSyntheticValue (true);
 	varnumchildren = var.GetNumChildren();
 	const char *sep="";
 	int ichild;
 	for (ichild=0; ichild<min(varnumchildren,limits.children_max); ichild++) {
-		SBValue child = var.GetChildAtIndex(ichild);
+		SBValue child = var.GetChildAtIndex(ichild, eDynamicCanRunTarget, true);
 		if (!child.IsValid())
 			continue;
 		const char *childname = getName(child);				// displayed name
@@ -439,6 +441,7 @@ formatChildrenList (StringB &childrendescB, SBValue var, char *expression, int t
 			expressionpathdescB.catsprintf("%s.%s", expression, childname);
 		else {
 			formatExpressionPath (expressionpathdescB, child);
+			
 			if (strcmp((const char *)expression,(const char *)expressionpathdescB.c_str())==0) {
 				SBType vartype = var.GetType();
 				logprintf (LOG_ALL, "formatChildrenList: Var=%-5s: children=%-2d, typeclass=%-10s, basictype=%-10s, bytesize=%-2d, Pointee: typeclass=%-10s, basictype=%-10s, bytesize=%-2d\n",
@@ -454,7 +457,7 @@ formatChildrenList (StringB &childrendescB, SBValue var, char *expression, int t
 		// [child={name="var2.*b",exp="*b",numchild="0",type="char",thread-id="1"}]
 		childrendescB.catsprintf ("%schild={name=\"%s\",exp=\"%s\",numchild=\"%d\","
 			"type=\"%s\",thread-id=\"%d\"}",
-			sep,expressionpathdescB.c_str(),childname,childnumchildren,displaytypename,threadindexid);
+			sep, (std::string(expression) + childname).c_str(), childname,childnumchildren,displaytypename,threadindexid);
 		sep = ",";
 	}
 	return childrendescB.c_str();

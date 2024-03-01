@@ -30,6 +30,8 @@ using namespace lldb;
 #endif
 #include "stringb.h"
 
+#include <map>
+
 #define WAIT_DATA  0
 #define MORE_DATA  1
 
@@ -80,6 +82,8 @@ typedef struct {
 	SBDebugger debugger;
 	SBProcess process;
 	SBListener listener;
+	std::map<std::string, SBValue> sessionVariables;
+	int nextSessionVariableId = 1; // for `varNNNNNN` generated names
 	int threadids[THREADS_MAX];
 } STATE;
 

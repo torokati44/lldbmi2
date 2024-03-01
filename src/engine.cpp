@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
+#include <string>
 //#include <termios.h>
 #include <cstdlib>
 
@@ -884,22 +884,22 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 				if (frame.IsValid()) {
 					// Find then Evaluate to avoid recreate variable
 					SBValue var = getVariable (frame, expression);
+					std::string varName = "var";
+					varName += std::to_string(pstate->nextSessionVariableId++);
+					pstate->sessionVariables[varName] = var;
+					
 					if (var.IsValid() && var.GetError().Success()) {
 						// should remove var.GetError().Success() but update do not work very well
 						updateVarState (var, limits.change_depth_max);
 						int varnumchildren = var.GetNumChildren();
 						SBType vartype = var.GetType();
-						char *expressionpathdesc = formatExpressionPath (var);
 						static StringB vardescB(VALUE_MAX);
 						vardescB.clear();
-						if (var.GetError().Fail())	// create a name because in this case, name=(anonymous)
-							expressionpathdesc = expression;
-						else
-							formatValue (vardescB, var, FULL_SUMMARY);		// was NO_SUMMARY
+						formatValue (vardescB, var, FULL_SUMMARY);		// was NO_SUMMARY
 						char *vardesc = vardescB.c_str();
 						cdtprintf ("%d^done,name=\"%s\",numchild=\"%d\",value=\"%s\","
 							"type=\"%s\",thread-id=\"%d\",has_more=\"0\"\n(gdb)\n",
-							cc.sequence, expressionpathdesc, varnumchildren, vardesc,
+							cc.sequence, varName.c_str(), varnumchildren, vardesc,
 							vartype.GetDisplayTypeName(), thread.GetIndexID());
 					}
 					else
@@ -963,7 +963,8 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 		if (thread.IsValid()) {
 			SBFrame frame = thread.GetSelectedFrame();
 			if (frame.IsValid()) {
-				SBValue var = getVariable (frame, expression);
+				//SBValue var = getVariable (frame, expression);
+				SBValue var = pstate->sessionVariables[expression];
 				if (var.IsValid() && var.GetError().Success()) {
 					int varnumchildren = 0;
 					int threadindexid = thread.GetIndexID();
@@ -1001,7 +1002,7 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 			if (thread.IsValid()) {
 				SBFrame frame = thread.GetSelectedFrame();
 				if (frame.IsValid()) {
-					SBValue var = getVariable (frame, expression);
+					SBValue var = pstate->sessionVariables[expression];
 					if (var.IsValid() && var.GetError().Success()) {
 						char *expressionpathdesc = formatExpressionPath (var);
 						cdtprintf ("%d^done,path_expr=\"%s\"\n(gdb)\n", cc.sequence, expressionpathdesc);
@@ -1035,7 +1036,7 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 			if (thread.IsValid()) {
 				SBFrame frame = thread.GetSelectedFrame();
 				if (frame.IsValid()) {
-				SBValue var = getVariable (frame, expression);		// createVariable
+					SBValue var = pstate->sessionVariables[expression];
 					if (var.IsValid()) {
 						char *vardesc = formatValue (var, FULL_SUMMARY);
 						cdtprintf ("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc);
