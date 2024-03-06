@@ -897,10 +897,18 @@ fromCDT (STATE *pstate, const char *commandLine, int linesize)			// from cdt
 						vardescB.clear();
 						formatValue (vardescB, var, FULL_SUMMARY);		// was NO_SUMMARY
 						char *vardesc = vardescB.c_str();
-						cdtprintf ("%d^done,name=\"%s\",numchild=\"%d\",value=\"%s\","
-							"type=\"%s\",thread-id=\"%d\",has_more=\"0\"\n(gdb)\n",
-							cc.sequence, varName.c_str(), varnumchildren, vardesc,
-							vartype.GetDisplayTypeName(), thread.GetIndexID());
+						if (var.IsDynamic() || var.IsSynthetic() || var.IsSyntheticChildrenGenerated()) {
+							cdtprintf ("%d^done,name=\"%s\",numchild=\"0\",value=\"%s\","
+								"type=\"%s\",thread-id=\"%d\",dynamic=\"1\",has_more=\"1\"\n(gdb)\n",
+								cc.sequence, varName.c_str(), vardesc,
+								vartype.GetDisplayTypeName(), thread.GetIndexID());
+						}
+						else {
+							cdtprintf ("%d^done,name=\"%s\",numchild=\"%d\",value=\"%s\","
+								"type=\"%s\",thread-id=\"%d\",has_more=\"0\"\n(gdb)\n",
+								cc.sequence, varName.c_str(), varnumchildren, vardesc,
+								vartype.GetDisplayTypeName(), thread.GetIndexID());
+						}
 					}
 					else
 						cdtprintf ("%d^error\n(gdb)\n", cc.sequence);
