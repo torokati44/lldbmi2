@@ -83,7 +83,7 @@ bool getStandardPathVariable(SBFrame frame, const char* expression, SBValue& var
     }
     if (!var.IsValid() || var.GetError().Fail())
         return false;
-    var.SetPreferSyntheticValue(false);
+    var.SetPreferSyntheticValue(true);
     return true;
 }
 
@@ -182,7 +182,7 @@ bool getDirectPathVariable(SBFrame frame, const char* expression, SBValue* found
     for (int ichild = 0; ichild < min(parentnumchildren, limits.children_max); ++ichild) {
         SBValue child = parent.GetChildAtIndex(ichild);
         if (child.IsValid() && child.GetError().Success() && depth > 1) {
-            child.SetPreferSyntheticValue(false);
+            child.SetPreferSyntheticValue(true);
             const char* childname = getName(child);
             logprintf(LOG_DEBUG, "getDirectPathVariable: scan children: parent=%s, expression_parts=%s, child=%s\n",
                       parentname, expression_parts, childname);
@@ -255,14 +255,14 @@ SBValue getVariable(SBFrame frame, const char* expression, bool tryDirect) {
     logprintf(LOG_DEBUG, "getVariable: expression=%s, name=%s, value=%s, changed=%d\n", expression, getName(var),
               var.GetValue(), var.GetValueDidChange());
     if (var.IsValid() && var.GetError().Success())
-        var.SetPreferSyntheticValue(false);
+        var.SetPreferSyntheticValue(true);
     return var;
 }
 
 // scan variables to reset their changed state
 int updateVarState(SBValue var, int depth) {
     logprintf(LOG_TRACE, "updateVarState (0x%x, %d)\n", &var, depth);
-    var.SetPreferSyntheticValue(false);
+    var.SetPreferSyntheticValue(true);
     SBType vartype = var.GetType();
     logprintf(LOG_DEBUG,
               "updateVarState: Var=%-5s: children=%-2d, typeclass=%-10s, basictype=%-10s, bytesize=%-2d, Pointee: "
@@ -289,7 +289,7 @@ int updateVarState(SBValue var, int depth) {
         for (int ichild = 0; ichild < min(varnumchildren, limits.children_max); ++ichild) {
             SBValue child = var.GetChildAtIndex(ichild);
             if (child.IsValid() && var.GetError().Success() && depth > 1) {
-                child.SetPreferSyntheticValue(false);
+                child.SetPreferSyntheticValue(true);
                 changes += updateVarState(child, depth - 1);
             }
         }
@@ -406,7 +406,7 @@ char* formatChildrenList(StringB& childrendescB, SBValue var, char* expression, 
         if (child.GetError().Fail())
             logprintf(LOG_DEBUG, "formatChildrenList: error on child %s: %s\n", childname == NULL ? "" : childname,
                       child.GetError().GetCString());
-        child.SetPreferSyntheticValue(false);
+        child.SetPreferSyntheticValue(true);
         int childnumchildren = child.GetNumChildren();
         SBType childtype = child.GetType();
         const char* displaytypename = childtype.GetDisplayTypeName();
@@ -477,7 +477,7 @@ char* formatChangedList(StringB& changedescB, SBValue var, bool& separatorvisibl
             SBValue child = var.GetChildAtIndex(ichild);
             if (!child.IsValid() || var.GetError().Fail())
                 continue;
-            child.SetPreferSyntheticValue(false);
+            child.SetPreferSyntheticValue(true);
             // Handle composite types (i.e. struct or arrays)
             if (depth > 1)
                 formatChangedList(changedescB, child, separatorvisible, depth - 1);
@@ -500,7 +500,7 @@ char* formatVariables(StringB& varsdescB, SBValueList varslist) {
     const char* separator = "";
     for (size_t i = 0; i < varslist.GetSize(); i++) {
         SBValue var = varslist.GetValueAtIndex(i);
-        var.SetPreferSyntheticValue(false);
+        var.SetPreferSyntheticValue(true);
         if (var.IsValid() && var.GetError().Success()) {
             SBType vartype = var.GetType();
             logprintf(LOG_DEBUG, "formatVariables: var=%s, type class=%s, basic type=%s \n", getName(var),
@@ -597,7 +597,7 @@ char* formatSummary(StringB& summarydescB, SBValue var) {
             SBValue child = var.GetChildAtIndex(ichild);
             if (!child.IsValid() || var.GetError().Fail())
                 continue;
-            child.SetPreferSyntheticValue(false);
+            child.SetPreferSyntheticValue(true);
             const char* childvalue = child.GetValue();
             vardescB.clear(); // clear previous buffer content
             if (childvalue != NULL)
