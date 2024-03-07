@@ -758,6 +758,23 @@ void Lldbmi2::handleStackCommand(CDT_COMMAND& cc, int nextarg) {
             cdtprintf("]\n(gdb)\n");
         } else
             cdtprintf("%d^error\n(gdb)\n", cc.sequence);
+    } else if (strcmp(cc.argv[0], "-thread-select") == 0) {
+        int threadid = -1;
+        if (cc.argv[nextarg] != NULL)
+            if (isdigit(*cc.argv[nextarg]))
+                sscanf(cc.argv[nextarg++], "%d", &threadid);
+
+        // ^done,new-thread-id="3",
+        // frame={level="0",func="vprintf",
+        // args=[{name="format",value="0x8048e9c \"%*s%c %d %c\\n\""},
+        // {name="arg",value="0x2"}],file="vprintf.c",line="31",arch="i386:x86_64"}
+
+        const char *framedesc = formatFrame(process.GetThreadByID(threadid).GetFrameAtIndex(0), WITH_LEVEL_AND_ARGS);
+
+        if (framedesc[0] != '\0')
+            cdtprintf("%d^done,%s\n(gdb)\n", cc.sequence, framedesc);
+        else
+            cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Can not fetch data now.");
     } else if (strcmp(cc.argv[0], "-stack-list-locals") == 0) {
         // stack-list-locals --thread 1 --frame 0 1
         // stack-list-locals --thread 2 --frame 0 1
