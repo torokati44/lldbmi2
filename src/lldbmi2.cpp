@@ -450,7 +450,7 @@ void Lldbmi2::handleBreakpointCommand(CDT_COMMAND& cc, int nextarg) {
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
 }
 
@@ -670,7 +670,7 @@ void Lldbmi2::handleVariableCommand(CDT_COMMAND& cc, int nextarg) {
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
 }
 
@@ -817,7 +817,7 @@ void Lldbmi2::handleStackCommand(CDT_COMMAND& cc, int nextarg) {
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
 }
 
@@ -975,7 +975,7 @@ void Lldbmi2::handleExecCommand(CDT_COMMAND& cc, int nextarg) {
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
 }
 
@@ -1262,7 +1262,7 @@ void Lldbmi2::handleDataCommand(CDT_COMMAND& cc, int nextarg) {
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
 }
 
@@ -1541,7 +1541,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
                 } else
                     cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "The program is not being run.");
             } else
-                cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+                cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
         }
     } else if (strncmp(cc.argv[0], "-break", strlen("-break")) == 0) {
         handleBreakpointCommand(cc, nextarg);
@@ -1964,7 +1964,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
                 srlprintf("process invalid\n");
             cdtprintf("%d^done\n(gdb)\n", cc.sequence);
         } else
-            cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+            cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     } else if (strcmp(cc.argv[0], "-symbol-list-lines") == 0) {
         char path[NAME_MAX];
         if (nextarg < cc.argc)
@@ -2010,7 +2010,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
     } else {
         logprintf(LOG_WARN, "command not understood: ");
         logdata(LOG_NOHEADER, cc.argv[0], strlen(cc.argv[0]));
-        cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Command unimplemented.");
+        cdtprintf("%d^error,msg=\"%s, command: '%s'\"\n(gdb)\n", cc.sequence, "Command unimplemented.", cc.argv[nextarg]);
     }
     return dataflag;
 }
