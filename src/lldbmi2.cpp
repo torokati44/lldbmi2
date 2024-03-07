@@ -7,6 +7,9 @@
 #include <cstring>
 #include <iostream>
 
+#include <string.h>
+#include <termios.h>
+
 #include <lldb/API/SBDebugger.h>
 
 #include <termios.h>
@@ -56,7 +59,7 @@ Syntax:
    lldbmi2 --version [options]
    lldbmi2 --interpreter mi2 [options]
 Arguments:
-   --version:           Return GDB's version (GDB 7.7.1) and exits.
+   --version:           Return GDB's version (GDB 7.12.1) and exits.
    --interpreter mi2:   Standard mi2 interface.
    --interpreter=mi2:   Standard mi2 interface.
 Options:
@@ -115,10 +118,11 @@ int main(int argc, char** argv, char** envp) {
     char commandLine[BIG_LINE_MAX]; // data from cdt
     int isVersion = 0, isInterpreter = 0;
     int isLog = 0;
-    unsigned int logmask = LOG_ALL;
+    unsigned int logmask = LOG_DEV;
 
     gpstate->ptyfd = EOF;
-    gpstate->gdbPrompt = "GNU gdb (GDB) 7.7.1";
+    gpstate->cdtptyfd = EOF;
+    gpstate->gdbPrompt = "GNU gdb (GDB) 7.12.1";
     snprintf(gpstate->lldbmi2Prompt, NAME_MAX, "lldbmi2 version %s", LLDBMI2_VERSION);
 
     gpstate->cdtbufferB.grow(BIG_LINE_MAX);
@@ -127,6 +131,13 @@ int main(int argc, char** argv, char** envp) {
     limits.children_max = CHILDREN_MAX;
     limits.walk_depth_max = WALK_DEPTH_MAX;
     limits.change_depth_max = CHANGE_DEPTH_MAX;
+
+    // create a log filename from program name and open log file
+    if (true) {
+        setlogfile(gpstate->logfilename, sizeof(gpstate->logfilename), argv[0], "lldbmi2.log");
+        openlogfile(gpstate->logfilename);
+        setlogmask(logmask);
+    }
 
     // get args
     for (int narg = 0; narg < argc; narg++) {
@@ -175,16 +186,35 @@ int main(int argc, char** argv, char** envp) {
             if (++narg < argc)
                 sscanf(logarg(argv[narg]), "%d", &limits.change_depth_max);
         }
-    }
+        else if (strcmp (argv[narg],"-ex") == 0) {
+            if (++narg<argc) {
+                if (strncmp(argv[narg], "new-ui", strlen("new-ui")) == 0) {
+                    sscanf(argv[narg], "new-ui mi %s", gpstate->cdtptyname);
+                    logprintf (LOG_INFO, "pty %s\n", gpstate->cdtptyname);
+                    
+                    gpstate->cdtptyfd = open (gpstate->cdtptyname, O_RDWR);
 
-    // create a log filename from program name and open log file
-    if (isLog) {
-        if (limits.istest)
-            setlogfile(gpstate->logfilename, sizeof(gpstate->logfilename), argv[0], "lldbmi2t.log");
-        else
-            setlogfile(gpstate->logfilename, sizeof(gpstate->logfilename), argv[0], "lldbmi2.log");
-        openlogfile(gpstate->logfilename);
-        setlogmask(logmask);
+                    // set pty in raw mode
+                    struct termios t;
+                    if (tcgetattr(gpstate->cdtptyfd, &t) != -1) {
+                        logprintf (LOG_INFO, "setting pty\n");
+                        // Noncanonical mode, disable signals, extended input processing, and echoing
+                        t.c_lflag &= ~(ICANON | ISIG | IEXTEN | ECHO);
+                        // Disable special handling of CR, NL, and BREAK.
+                        // No 8th-bit stripping or parity error handling
+                        // Disable START/STOP output flow control
+                        t.c_iflag &= ~(BRKINT | ICRNL | IGNBRK | IGNCR | INLCR |
+                                INPCK | ISTRIP | IXON | PARMRK);
+                        // Disable all output processing
+                        t.c_oflag &= ~OPOST;
+                        t.c_cc[VMIN] = 1;        // Character-at-a-time input
+                        t.c_cc[VTIME] = 0;        // with blocking
+                        int ret = tcsetattr(gpstate->cdtptyfd, TCSAFLUSH, &t);
+                        logprintf (LOG_INFO, "setting pty %d\n", ret);
+                    }
+                }
+            }
+        }
     }
 
     // log program args
@@ -217,7 +247,9 @@ int main(int argc, char** argv, char** envp) {
     signal(SIGINT, signalHandler);
     signal(SIGSTOP, signalHandler);
 
+    logprintf(LOG_TRACE, "printing prompt\n");
     cdtprintf("(gdb)\n");
+    write(1, "(gdb)\n", 6);
 
     fd_set set;
     FD_ZERO(&set);
@@ -225,18 +257,27 @@ int main(int argc, char** argv, char** envp) {
     while (!gpstate->eof) {
         // get inputs
         timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 200000;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+        int nfds = STDIN_FILENO+1;
         // check command from CDT
         FD_SET(STDIN_FILENO, &set);
+        if (gpstate->cdtptyfd != EOF) {
+            // check data from Eclipse's console
+            FD_SET (gpstate->cdtptyfd, &set);
+            logprintf (LOG_TRACE, "select from both\n");
+            nfds = std::max(nfds, gpstate->cdtptyfd+1);
+        }
         if (gpstate->ptyfd != EOF) {
             // check data from Eclipse's console
             FD_SET(gpstate->ptyfd, &set);
-            select(gpstate->ptyfd + 1, &set, NULL, NULL, &timeout);
-        } else
-            select(STDIN_FILENO + 1, &set, NULL, NULL, &timeout);
+            logprintf (LOG_TRACE, "select from both\n");
+            nfds = std::max(nfds, gpstate->ptyfd+1);
+        }
 
-        if (FD_ISSET(STDIN_FILENO, &set) && !gpstate->eof && !limits.istest) {
+        select(nfds, &set, NULL, NULL, &timeout);
+
+        if (FD_ISSET(STDIN_FILENO, &set) && !gpstate->eof) {
             long chars = read(STDIN_FILENO, commandLine, sizeof(commandLine) - 1);
             if (chars > 0) {
                 commandLine[chars] = '\0';
@@ -246,16 +287,30 @@ int main(int argc, char** argv, char** envp) {
             } else
                 gpstate->eof = true;
         }
+        char consoleLine[LINE_MAX];            // data from eclipse's console
+        if (gpstate->cdtptyfd!=EOF) {            // input from user to program
+            if (FD_ISSET(gpstate->cdtptyfd, &set) && !gpstate->eof && !limits.istest) {
+                logprintf (LOG_TRACE, "cdt pty read in\n");
+                long chars = read (gpstate->cdtptyfd, consoleLine, sizeof(consoleLine)-1);
+                logprintf (LOG_TRACE, "cdt pty read out %d chars\n", chars);
+                if (chars>0) {
+                    logprintf (LOG_PROG_OUT, "cdt pty read %d chars: '%s'\n", chars, consoleLine);
+                    consoleLine[chars] = '\0';
 
-        if (gpstate->ptyfd != EOF && gpstate->isrunning) { // input from user to program
+                while (gpstate->fromCDT (consoleLine,sizeof(consoleLine)) == MORE_DATA)
+                    consoleLine[0] = '\0';
+                }
+            }
+        }
+
+
+        if (gpstate->ptyfd!=EOF) {            // input from user to program
+
             if (FD_ISSET(gpstate->ptyfd, &set) && !gpstate->eof && !limits.istest) {
                 char consoleLine[LINE_MAX]; // data from eclipse's console
                 long chars = read(gpstate->ptyfd, consoleLine, sizeof(consoleLine) - 1);
                 if (chars > 0) {
                     consoleLine[chars] = '\0';
-                    SBProcess process = gpstate->process;
-                    if (process.IsValid())
-                        process.PutSTDIN(consoleLine, chars);
                 }
             }
         }
@@ -1405,6 +1460,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
         if (strcmp(cdtptyname, "%s") == 0)
             ptyfd = EOF;
         else {
+            logprintf(LOG_NONE, "ptyname=%s\n", cdtptyname);
             ptyfd = open(cdtptyname, O_RDWR);
             // set pty in raw mode
             struct termios t;
@@ -2278,9 +2334,9 @@ const char* logarg(const char* arg) {
 }
 
 void writetocdt(const char* line) {
-    logprintf(LOG_NONE, "writetocdt (...)\n", line);
+    logprintf(LOG_TRACE, "writetocdt (...)\n", line);
     logdata(LOG_CDT_OUT, line, strlen(line));
-    writelog(STDOUT_FILENO, line, strlen(line));
+    writelog(gpstate->cdtptyfd > 0 ? gpstate->cdtptyfd : STDOUT_FILENO, line, strlen(line));
 }
 
 void cdtprintf(const char* format, ...) {

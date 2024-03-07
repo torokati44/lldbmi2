@@ -80,7 +80,8 @@ public:
 
     ~Lldbmi2();
 
-    int ptyfd;
+    int ptyfd = -1;
+    int cdtptyfd = -1;
     bool eof;
     bool procstop;
     bool isrunning;
