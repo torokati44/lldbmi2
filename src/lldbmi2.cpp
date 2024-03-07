@@ -2383,7 +2383,7 @@ void signalHandler(int signo) {
 /*
 
 BUTTON PAUSE (SIGSTOP or ^Z)
-
+173728.927 ---  signal SIGINT
 173728.927 ---  signal_handler: signal SIGINT. self PID = 15659, process pid = 15660
 173728.927 ---  send signal SIGSTOP to process 15660
 173728.930 ###  eStateStopped
@@ -2395,7 +2395,7 @@ BUTTON PAUSE (SIGSTOP or ^Z)
 173728.940 <<=  |32^error,msg="Command unimplemented."\n(gdb)\n|
 
 BUTTON STOP (SIGINT or ^C)
-
+173504.979 ###  eBroadcastBitSTDOUT
 173504.979 <<<  |loop 0\n|
 173505.222 ---  signal SIGINT
 173505.222 ---  signal_handler: signal SIGINT. self PID = 15615, process pid = 15616
