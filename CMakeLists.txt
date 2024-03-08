@@ -67,7 +67,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE -Wall -pedantic -pthread)
 # Test programs
 if(BUILD_TESTS)
     enable_testing()
-    file(GLOB_RECURSE tests_paths ${CMAKE_CURRENT_SOURCE_DIR}/tests/src/*.cpp)
+    file(GLOB tests_paths ${CMAKE_CURRENT_SOURCE_DIR}/tests/src/*.cpp)
     foreach(test_path IN LISTS tests_paths)
         get_filename_component(test_name ${test_path} NAME_WE)
         add_executable(${test_name} ${test_path})
