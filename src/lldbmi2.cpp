@@ -280,10 +280,12 @@ int main(int argc, char** argv, char** envp) {
         if (FD_ISSET(STDIN_FILENO, &set) && !gpstate->eof) {
             long chars = read(STDIN_FILENO, commandLine, sizeof(commandLine) - 1);
             if (chars > 0) {
-                commandLine[chars] = '\0';
-                while (gpstate->fromCDT(commandLine, sizeof(commandLine)) == MORE_DATA) {
-                    commandLine[0] = '\0';
-                }
+                commandLine[chars-1] = '\0';
+                SBCommandInterpreter interp = gpstate->debugger.GetCommandInterpreter();
+                SBCommandReturnObject result;
+                ReturnStatus retcode = interp.HandleCommand(commandLine, result);
+
+                write(STDOUT_FILENO, result.GetOutput(), result.GetOutputSize());
             } else
                 gpstate->eof = true;
         }
