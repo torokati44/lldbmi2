@@ -10,6 +10,7 @@
 #endif
 #include "log.h"
 #include "test.h"
+#include "lldbmi2.h"
 
 // test sequence to debug lldbmi2
 // comment unwanted commands as you wish

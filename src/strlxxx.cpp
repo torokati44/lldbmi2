@@ -1,4 +1,4 @@
-#ifdef __linux__
+#if defined (__linux__) || defined(_WIN32)
 
 #include <sys/types.h>
 #include <string.h>

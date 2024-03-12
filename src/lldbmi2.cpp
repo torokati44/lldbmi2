@@ -8,12 +8,10 @@
 #include <iostream>
 
 #include <string.h>
-#include <termios.h>
 #include "linenoise.h"
 
 #include <lldb/API/SBDebugger.h>
 
-#include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
@@ -195,6 +193,7 @@ int main(int argc, char** argv, char** envp) {
                     
                     gpstate->cdtptyfd = open (gpstate->cdtptyname, O_RDWR);
 
+                    #if 0
                     // set pty in raw mode
                     struct termios t;
                     if (tcgetattr(gpstate->cdtptyfd, &t) != -1) {
@@ -213,6 +212,7 @@ int main(int argc, char** argv, char** envp) {
                         int ret = tcsetattr(gpstate->cdtptyfd, TCSAFLUSH, &t);
                         logprintf (LOG_INFO, "setting pty %d\n", ret);
                     }
+                    #endif
                 }
             }
         }
@@ -246,7 +246,7 @@ int main(int argc, char** argv, char** envp) {
     }
 
     signal(SIGINT, signalHandler);
-    signal(SIGSTOP, signalHandler);
+    //signal(SIGSTOP, signalHandler);
 
     logprintf(LOG_TRACE, "printing prompt\n");
     cdtprintf("(gdb)\n");
@@ -1492,6 +1492,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
         else {
             logprintf(LOG_NONE, "ptyname=%s\n", cdtptyname);
             ptyfd = open(cdtptyname, O_RDWR);
+            #if 0
             // set pty in raw mode
             struct termios t;
             if (tcgetattr(ptyfd, &t) != -1) {
@@ -1507,6 +1508,7 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
                 t.c_cc[VTIME] = 0; // with blocking
                 tcsetattr(ptyfd, TCSAFLUSH, &t);
             }
+            #endif
         }
         logprintf(LOG_NONE, "pty = %d\n", ptyfd);
         cdtprintf("%d^done\n(gdb)\n", cc.sequence);

@@ -208,7 +208,7 @@ void lognumbers(unsigned scope, const unsigned long* data, int datasize) {
     if (data == NULL)
         return;
     if (log_fd >= 0 && (scope & log_mask) == scope) {
-        logbuffer.catsprintf("%016lx: ", (unsigned long)data); // pointer size = unsigned long size = 8 bytes = 16 chars
+        logbuffer.catsprintf("%p: ", data); // pointer size = unsigned long size = 8 bytes = 16 chars
         for (int ii = 0; ii < datasize; ii++)
             logbuffer.catsprintf("%016lx ", data[ii]);
 
