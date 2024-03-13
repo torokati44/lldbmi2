@@ -629,29 +629,47 @@ void Lldbmi2::handleVariableCommand(CDT_COMMAND& cc, int nextarg) {
         //|52^done,numchild="3",children=[child={name="z->a",exp="a",numchild="0",type"int",thread-id="1"},child={name="z->b",exp="b",numchild="1",type"char
         //*",thread-id="1"},child={name="z->y",exp="y",numchild="4",type"Y *",thread-id="1"}]",has_more="0"\n(gdb)\n|
 
-        char expression[NAME_MAX];
-        *expression = '\0';
+        char name[NAME_MAX];
+        *name = '\0';
         if (nextarg < cc.argc)
-            strlcpy(expression, cc.argv[nextarg++], sizeof(expression));
-        SBThread thread = process.GetSelectedThread();
-        if (thread.IsValid()) {
-            SBFrame frame = thread.GetSelectedFrame();
-            if (frame.IsValid()) {
-                //SBValue var = getVariable(frame, expression);
-                SBValue var = sessionVariables[expression];
-                if (var.IsValid() && var.GetError().Success()) {
-                    int varnumchildren = 0;
-                    int threadindexid = thread.GetIndexID();
-                    var.SetPreferDynamicValue(DynamicValueType::eDynamicCanRunTarget);
-                    var.SetPreferSyntheticValue(true);
-                    char* childrendesc = formatChildrenList(var, expression, threadindexid, varnumchildren);
-                    // 34^done,numchild="1",children=[child={name="var2.*b",exp="*b",numchild="0",type="char",thread-id="1"}],has_more="0"
-                    cdtprintf("%d^done,numchild=\"%d\",children=[%s]\",has_more=\"0\"\n(gdb)\n", cc.sequence,
-                              varnumchildren, childrendesc);
-                } else
-                    cdtprintf("%d^error\n(gdb)\n", cc.sequence);
-            } else
-                cdtprintf("%d^error\n(gdb)\n", cc.sequence);
+            strlcpy (name, cc.argv[nextarg++], sizeof(name));
+        //SBValue var = getVariable (frame, expression);
+        SBValue var = sessionVariables[name];
+        if (var.IsValid() && var.GetError().Success()) {
+            int varnumchildren = var.GetNumChildren();
+            var.SetPreferDynamicValue(DynamicValueType::eDynamicCanRunTarget);
+            var.SetPreferSyntheticValue(true);
+
+            std::string childrendesc;
+            for (int i = 0; i < var.GetNumChildren(); ++i) {
+
+                SBValue child = var.GetChildAtIndex(i);
+
+                std::string fullName = std::string(name) + "." + child.GetName();
+
+                if (!childrendesc.empty()) {
+                    childrendesc += ",";
+                }
+                childrendesc += "child={";
+                childrendesc += "name=\"";
+                childrendesc += fullName;
+                childrendesc += "\",exp=\"";
+                SBStream s;
+                child.GetExpressionPath(s);
+                childrendesc += child.GetName();
+                childrendesc += "\",numchild=\"";
+                childrendesc += std::to_string(child.GetNumChildren());
+                childrendesc += "\",type=\"";
+                childrendesc += child.GetType().GetDisplayTypeName();
+                childrendesc += "\"}";
+
+                sessionVariables[fullName] = child;
+            }
+
+            // 34^done,numchild="1",children=[child={name="var2.*b",exp="*b",numchild="0",type="char",thread-id="1"}],has_more="0"
+            cdtprintf ("%d^done,numchild=\"%d\",children=[%s]\",has_more=\"0\"\n(gdb)\n",
+                    cc.sequence, varnumchildren, childrendesc.c_str());
+
         } else
             cdtprintf("%d^error\n(gdb)\n", cc.sequence);
     } else if (strcmp(cc.argv[0], "-var-info-path-expression") == 0) {
