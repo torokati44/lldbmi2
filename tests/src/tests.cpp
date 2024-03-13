@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <pthread.h>
 #include <unistd.h>
 #include <cstdint>

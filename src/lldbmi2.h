@@ -31,6 +31,8 @@ using namespace lldb;
 #include "engine.h"
 #include "stringb.h"
 
+#include <map>
+
 #define WAIT_DATA 0
 #define MORE_DATA 1
 
@@ -114,6 +116,8 @@ public:
     SBTarget target;
     SBLaunchInfo launchInfo = SBLaunchInfo(NULL);
     pthread_t sbTID;
+    std::map<std::string, SBValue> sessionVariables;
+    int nextSessionVariableId = 1; // for `varNNNNNN` generated names
     int threadids[THREADS_MAX];
 };
 
