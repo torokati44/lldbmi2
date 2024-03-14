@@ -38,7 +38,7 @@ char* formatVariables(StringB& varsdescB, SBValueList varslist);
 char* formatSummary(StringB& summarydescB, SBValue var);
 char* formatValue(StringB& varsdescB, SBValue var, VariableDetails details);
 char* formatDesc(StringB& vardescB, SBValue var);
-char* formatStruct(StringB& vardescB, SBValue var);
+std::string formatStruct(SBValue var);
 
 char* formatExpressionPath(SBValue var);
 char* formatChildrenList(SBValue var, char* expression, int threadindexid, int& varnumchildren);

@@ -1153,10 +1153,8 @@ void Lldbmi2::handleDataCommand(CDT_COMMAND& cc, int nextarg) {
                         } else
                             cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, val.GetValue());
                     } else if ((valtype.GetTypeClass() & eTypeClassStruct) != 0) {
-                        StringB s(VALUE_MAX);
-                        s.clear();
-                        char* vardesc = formatStruct(s, val);
-                        cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc);
+                        std::string vardesc = formatStruct(val);
+                        cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc.c_str());
                     } else
                         cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, val.GetValue());
                 }

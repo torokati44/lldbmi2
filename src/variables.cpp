@@ -681,25 +681,30 @@ char* formatDesc(StringB& s, SBValue var) {
     return (s.c_str());
 }
 
-char* formatStruct(StringB& s, SBValue var) {
-    s.append("{");
+std::string formatStruct(SBValue var) {
+    std::string s;
+    s += "{";
     for (unsigned int ndx = 0; ndx < var.GetNumChildren(); ndx++) {
         SBValue child = var.GetChildAtIndex(ndx);
         if (ndx > 0)
-            s.append(", ");
-        s.catsprintf("%s = ", child.GetName());
+            s += ", ";
+        s += child.GetName();
+        s += " = ";
 
         if ((child.GetType().GetNumberOfFields() > 0)) {
-            formatStruct(s, child);
+            s += formatStruct(child);
         } else {
             int flags = child.GetType().GetTypeFlags();
             if ((flags & eTypeHasValue) != 0) {
                 if ((flags & eTypeIsFuncPrototype) != 0) {
-                    s.catsprintf(" {%s} %s", child.GetType().GetName(), var.GetLocation());
+                    s += " {";
+                    s += child.GetType().GetName();
+                    s += "} ";
+                    s += var.GetLocation();
                 } else
-                    s.catsprintf("%s", child.GetValue());
+                    s += child.GetValue();
             } else
-                s.catsprintf("%s", child.GetLocation());
+                s += child.GetLocation();
         }
     }
     s.append("}");
