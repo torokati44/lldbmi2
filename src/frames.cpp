@@ -108,17 +108,11 @@ std::string formatFrame(SBFrame frame, FrameDetails framedetails) {
 }
 
 // format a thread description into a GDB string
-char* formatThreadInfo(SBProcess process, int threadindexid) {
-    static StringB threaddescB(LINE_MAX);
-    threaddescB.clear();
-    return formatThreadInfo(threaddescB, process, threadindexid);
-}
-
-char* formatThreadInfo(StringB& threaddescB, SBProcess process, int threadindexid) {
-    logprintf(LOG_TRACE, "formatThreadInfo (0x%x, 0x%x, %d)\n", &threaddescB, &process, threadindexid);
-    threaddescB.clear();
+std::string formatThreadInfo(SBProcess process, int threadindexid) {
+    logprintf(LOG_TRACE, "formatThreadInfo (0x%x, %d)\n", &process, threadindexid);
+    std::string result;
     if (!process.IsValid())
-        return threaddescB.c_str();
+        return result;
     int pid = process.GetProcessID();
     int state = process.GetState();
     if (state == eStateStopped) {
@@ -149,12 +143,12 @@ char* formatThreadInfo(StringB& threaddescB, SBProcess process, int threadindexi
                 SBFrame frame = thread.GetFrameAtIndex(0);
                 if (frame.IsValid()) {
                     std::string framedescstr = formatFrame(frame, WITH_LEVEL_AND_ARGS);
-                    threaddescB.catsprintf("%s{id=\"%d\",target-id=\"Thread 0x%x of process %d\",%s,state=\"stopped\"}",
-                                           separator, threadindexid, tid, pid, framedescstr.c_str());
+                    result += std::format(R"({}{{id="{}",target-id="Thread 0x{:x} of process {}",{},state="stopped"}})",
+                                               separator, threadindexid, tid, pid, framedescstr);
                 }
             }
             separator = ",";
         }
     }
-    return threaddescB.c_str();
+    return result;
 }

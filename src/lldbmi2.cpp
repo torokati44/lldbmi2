@@ -1709,9 +1709,9 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
                          filedir, filename);
             cdtprintf("%d^done,groups=[{%s}]\n(gdb)\n", cc.sequence, groupsdesc);
         } else if (strcmp(cc.argv[nextarg], threadgroup) == 0) {
-            char* threaddesc = formatThreadInfo(process, -1);
-            if (threaddesc[0] != '\0')
-                cdtprintf("%d^done,threads=[%s]\n(gdb)\n", cc.sequence, threaddesc);
+            std::string threaddesc = formatThreadInfo(process, -1);
+            if (!threaddesc.empty())
+                cdtprintf("%d^done,threads=[%s]\n(gdb)\n", cc.sequence, threaddesc.c_str());
             else
                 cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Can not fetch data now.");
         }
@@ -1733,9 +1733,9 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
         if (cc.argv[nextarg] != NULL)
             if (isdigit(*cc.argv[nextarg]))
                 sscanf(cc.argv[nextarg++], "%d", &threadindexid);
-        char* threaddesc = formatThreadInfo(process, threadindexid);
-        if (threaddesc[0] != '\0')
-            cdtprintf("%d^done,threads=[%s]\n(gdb)\n", cc.sequence, threaddesc);
+        std::string threaddesc = formatThreadInfo(process, threadindexid);
+        if (!threaddesc.empty())
+            cdtprintf("%d^done,threads=[%s]\n(gdb)\n", cc.sequence, threaddesc.c_str());
         else
             cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Can not fetch data now.");
     } else if (strcmp(cc.argv[0], "ptype") == 0) {
