@@ -36,7 +36,7 @@ char* formatChangedList(StringB& changedescB, SBValue var, bool& separatorvisibl
 char* formatVariables(StringB& varsdescB, SBValueList varslist);
 char* formatSummary(StringB& summarydescB, SBValue var);
 char* formatValue(StringB& varsdescB, SBValue var, VariableDetails details);
-char* formatDesc(StringB& vardescB, SBValue var);
+std::string formatDesc(SBValue var);
 std::string formatStruct(SBValue var);
 
 char* formatExpressionPath(SBValue var);

@@ -1130,10 +1130,8 @@ void Lldbmi2::handleDataCommand(CDT_COMMAND& cc, int nextarg) {
                 cdtprintf("%d^error,msg=\"%s.\"\n(gdb)\n", cc.sequence, val.GetError().GetCString());
             else {
                 if (doDeref) {
-                    StringB s(VALUE_MAX);
-                    s.clear();
-                    char* vardesc = formatDesc(s, val);
-                    cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc);
+                    std::string vardesc = formatDesc(val);
+                    cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc.c_str());
                 } else {
                     SBType valtype = val.GetType();
                     if ((valtype.GetTypeClass() & eTypeClassTypedef) != 0)

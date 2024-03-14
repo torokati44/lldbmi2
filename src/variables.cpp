@@ -624,8 +624,11 @@ char* formatValue(SBValue var, VariableDetails details) {
     return formatValue(vardescB, var, details);
 }
 
-char* formatDesc(StringB& s, SBValue var) {
-    s.catsprintf("{ %s = ", var.GetTypeName());
+std::string formatDesc(SBValue var) {
+    std::string s;
+    s += "{ ";
+    s += var.GetTypeName();
+    s += "= ";
     SBType type = var.GetType();
     int basecnt = type.GetNumberOfDirectBaseClasses();
     if (basecnt > 0) {
@@ -634,10 +637,12 @@ char* formatDesc(StringB& s, SBValue var) {
         int index = var.GetIndexOfChildWithName(newn);
         if (index > -1) {
             SBValue child = var.GetChildAtIndex(index);
-            formatDesc(s, child);
+            s += formatDesc(child);
             first = 1;
         } else {
-            s.catsprintf("{ %s, }, ", newn);
+            s += "{ ";
+            s += newn;
+            s += ", }, ";
             first = 0;
         }
         for (unsigned ndx = first; ndx < var.GetNumChildren(); ndx++) {
@@ -654,13 +659,13 @@ char* formatDesc(StringB& s, SBValue var) {
             }
             while (*desc) {
                 if (*desc == '\n')
-                    s.append(' ');
+                    s += ' ';
                 else if (*desc == '(')
-                    s.append('{');
+                    s += '{';
                 else if (*desc == ')')
-                    s.append('}');
+                    s += '}';
                 else
-                    s.append(*desc);
+                    s += *desc;
                 desc++;
             }
             s.append(", ");
