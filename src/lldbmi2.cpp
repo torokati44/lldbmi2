@@ -1988,8 +1988,6 @@ int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
                 strlcpy(symbol, cc.argv[++nextarg], sizeof(symbol));
             SBSymbolContextList list = target.FindFunctions(symbol, eFunctionNameTypeAny);
             srcprintf("info functions %s\n", symbol);
-            static StringB funcdescB(BIG_LINE_MAX);
-            funcdescB.clear();
             srlprintf("All functions matching regular expression \"%s\"\n\n", symbol);
             for (size_t i = 0; i < list.GetSize(); i++) {
                 SBSymbolContext ctxt = list.GetContextAtIndex(i);
