@@ -10,10 +10,10 @@ int getNumFrames(SBThread thread);
 void selectValidFrame(SBThread thread);
 
 std::string formatBreakpoint(SBBreakpoint breakpoint, Lldbmi2* pstate);
-char* formatFrame(StringB& framedesc, SBFrame frame, FrameDetails details);
+std::string formatFrame(SBFrame frame, FrameDetails details);
 char* formatThreadInfo(StringB& threaddesc, SBProcess process, int threadindexid);
 
-char* formatFrame(SBFrame frame, FrameDetails details);
+
 char* formatThreadInfo(SBProcess process, int threadindexid);
 
 #endif // FORMFRAMES_HAT_H

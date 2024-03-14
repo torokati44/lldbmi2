@@ -48,15 +48,8 @@ std::string formatBreakpoint(SBBreakpoint breakpoint, Lldbmi2* pstate) {
 }
 
 // format a frame description into a GDB string
-// format a frame description into a GDB string
-char* formatFrame(SBFrame frame, FrameDetails framedetails) {
-    static StringB framedescB(LINE_MAX);
-    framedescB.clear();
-    return formatFrame(framedescB, frame, framedetails);
-}
-
-char* formatFrame(StringB& framedescB, SBFrame frame, FrameDetails framedetails) {
-    logprintf(LOG_TRACE, "formatFrame (0x%x, 0x%x, 0x%x)\n", &framedescB, &frame, framedetails);
+std::string formatFrame(SBFrame frame, FrameDetails framedetails) {
+    logprintf(LOG_TRACE, "formatFrame (0x%x, 0x%x)\n", &frame, framedetails);
     int frameid = frame.GetFrameID();
     SBAddress addr = frame.GetPCAddress();
     addr_t file_addr = frame.GetPC();
@@ -95,24 +88,23 @@ char* formatFrame(StringB& framedescB, SBFrame frame, FrameDetails framedetails)
             argsstringB.catsprintf("%sargs=[%s]", (framedetails == JUST_LEVEL_AND_ARGS) ? "" : ",", argsdescB.c_str());
         }
         if (framedetails == JUST_LEVEL_AND_ARGS)
-            framedescB.catsprintf("frame={%s%s}", levelstring, argsstringB.c_str());
+            return std::format("frame={{{}{}}}", levelstring, argsstringB.c_str());
         else
-            framedescB.catsprintf("frame={%saddr=\"%p\",func=\"%s\"%s,file=\"%s\","
-                                  "fullname=\"%s/%s\",line=\"%d\"}",
-                                  levelstring, file_addr, func_name, argsstringB.c_str(), filename, filedir, filename,
-                                  line);
+            return std::format(
+                R"(frame={{{}addr="{}",func="{}"{}file="{}","
+                "fullname="{}/{}",line="{}"}})",
+                levelstring, file_addr, func_name, argsstringB.c_str(), filename, filedir, filename, line);
     } else {
         if (framedetails & WITH_ARGS)
             argsstringB.catsprintf("%sargs=[]", (framedetails == JUST_LEVEL_AND_ARGS) ? "" : ",");
         if (framedetails == JUST_LEVEL_AND_ARGS)
-            framedescB.catsprintf("frame={%s%s}", levelstring, argsstringB.c_str());
+            return std::format("frame={{{}{}}}", levelstring, argsstringB.c_str());
         else {
             func_name = frame.GetFunctionName();
-            framedescB.catsprintf("frame={%saddr=\"%p\",func=\"%s\"%s,file=\"%s\"}", levelstring, file_addr, func_name,
-                                  argsstringB.c_str(), modulefilename);
+            return std::format(R"(frame={{{}addr="{}",func="{}"{}file="{}"}})",
+                                levelstring, file_addr, func_name, argsstringB.c_str(), modulefilename);
         }
     }
-    return framedescB.c_str();
 }
 
 // format a thread description into a GDB string
@@ -156,9 +148,9 @@ char* formatThreadInfo(StringB& threaddescB, SBProcess process, int threadindexi
             if (frames > 0) {
                 SBFrame frame = thread.GetFrameAtIndex(0);
                 if (frame.IsValid()) {
-                    char* framedescstr = formatFrame(frame, WITH_LEVEL_AND_ARGS);
+                    std::string framedescstr = formatFrame(frame, WITH_LEVEL_AND_ARGS);
                     threaddescB.catsprintf("%s{id=\"%d\",target-id=\"Thread 0x%x of process %d\",%s,state=\"stopped\"}",
-                                           separator, threadindexid, tid, pid, framedescstr);
+                                           separator, threadindexid, tid, pid, framedescstr.c_str());
                 }
             }
             separator = ",";

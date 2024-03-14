@@ -823,14 +823,12 @@ void Lldbmi2::handleStackCommand(CDT_COMMAND& cc, int nextarg) {
                 endframe = startframe + limits.frames_max; // limit # frames
             const char* separator = "";
             cdtprintf("%d^done,stack=[", cc.sequence);
-            static StringB framedescB(LINE_MAX);
             for (int iframe = startframe; iframe < endframe; iframe++) {
                 SBFrame frame = thread.GetFrameAtIndex(iframe);
                 if (!frame.IsValid())
                     continue;
-                framedescB.clear();
-                char* framedesc = formatFrame(framedescB, frame, WITH_LEVEL);
-                cdtprintf("%s%s", separator, framedesc);
+                std::string framedesc = formatFrame(frame, WITH_LEVEL);
+                cdtprintf("%s%s", separator, framedesc.c_str());
                 separator = ",";
             }
             cdtprintf("]\n(gdb)\n");
@@ -858,14 +856,12 @@ void Lldbmi2::handleStackCommand(CDT_COMMAND& cc, int nextarg) {
                 endframe = startframe + limits.frames_max; // limit # frames
             const char* separator = "";
             cdtprintf("%d^done,stack-args=[", cc.sequence);
-            static StringB argsdescB(BIG_LINE_MAX);
             for (int iframe = startframe; iframe < endframe; iframe++) {
                 SBFrame frame = thread.GetFrameAtIndex(iframe);
                 if (!frame.IsValid())
                     continue;
-                argsdescB.clear();
-                char* argsdesc = formatFrame(argsdescB, frame, JUST_LEVEL_AND_ARGS);
-                cdtprintf("%s%s", separator, argsdesc);
+                std::string argsdesc = formatFrame(frame, JUST_LEVEL_AND_ARGS);
+                cdtprintf("%s%s", separator, argsdesc.c_str());
                 separator = ",";
             }
             cdtprintf("]\n(gdb)\n");
@@ -882,10 +878,10 @@ void Lldbmi2::handleStackCommand(CDT_COMMAND& cc, int nextarg) {
         // args=[{name="format",value="0x8048e9c \"%*s%c %d %c\\n\""},
         // {name="arg",value="0x2"}],file="vprintf.c",line="31",arch="i386:x86_64"}
 
-        const char *framedesc = formatFrame(process.GetThreadByID(threadid).GetFrameAtIndex(0), WITH_LEVEL_AND_ARGS);
+        std::string framedesc = formatFrame(process.GetThreadByID(threadid).GetFrameAtIndex(0), WITH_LEVEL_AND_ARGS);
 
-        if (framedesc[0] != '\0')
-            cdtprintf("%d^done,%s\n(gdb)\n", cc.sequence, framedesc);
+        if (!framedesc.empty())
+            cdtprintf("%d^done,%s\n(gdb)\n", cc.sequence, framedesc.c_str());
         else
             cdtprintf("%d^error,msg=\"%s\"\n(gdb)\n", cc.sequence, "Can not fetch data now.");
     } else if (strcmp(cc.argv[0], "-stack-list-locals") == 0) {
@@ -2240,9 +2236,9 @@ void Lldbmi2::onStopped()
             logprintf(LOG_ERROR, "frame invalid on event eStateStopped (eStopReasonBreakpoint)\n");
             return;
         }
-        char* framedesc = formatFrame(frame, WITH_ARGS);
+        std::string framedesc = formatFrame(frame, WITH_ARGS);
         int threadindexid = thread.GetIndexID();
-        cdtprintf("*stopped,%s%s,thread-id=\"%d\",stopped-threads=\"all\"\n(gdb)\n", reasondesc, framedesc,
+        cdtprintf("*stopped,%s%s,thread-id=\"%d\",stopped-threads=\"all\"\n(gdb)\n", reasondesc, framedesc.c_str(),
                   threadindexid);
         //	cdtprintf
         //("*stopped,reason=\"breakpoint-hit\",disp=\"keep\",bkptno=\"1\",frame={addr=\"0x0000000100000f06\",func=\"main\",args=[],file=\"../Sources/tests.c\",fullname=\"/project_path/tests/Sources/tests.c\",line=\"33\"},thread-id=\"1\",stopped-threads=\"all\"\n(gdb)
@@ -2294,10 +2290,10 @@ void Lldbmi2::onStopped()
             logprintf(LOG_ERROR, "frame invalid on event eStateStopped (eStopReasonSignal)\n");
             return;
         }
-        char* framedesc = formatFrame(frame, WITH_ARGS);
+        std::string framedesc = formatFrame(frame, WITH_ARGS);
         int threadindexid = thread.GetIndexID();
         // signal-name="SIGSEGV",signal-meaning="Segmentation fault"
-        cdtprintf("*stopped,%s%s,thread-id=\"%d\",stopped-threads=\"all\"\n(gdb)\n", reasondesc, framedesc,
+        cdtprintf("*stopped,%s%s,thread-id=\"%d\",stopped-threads=\"all\"\n(gdb)\n", reasondesc, framedesc.c_str(),
                   threadindexid);
         // *stopped,reason="signal-received",signal-name="SIGSEGV",signal-meaning="Segmentation
         // fault",frame={addr="0x0000000100000f7b",func="main",args=[],file="../Sources/tests.cpp",fullname="/project_path/test_hello_cpp/Sources/tests.cpp",line="44"},thread-id="1",stopped-threads="all"
