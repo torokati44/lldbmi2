@@ -120,17 +120,6 @@ char* strfind(char* string, const char* find, int way, const char* except) {
     return NULL;
 }
 
-char* strup(char* string, int len) {
-    char* p = string;
-    while (*p) {
-        *p = toupper(*p);
-        p++;
-        if ((len != -1) && ((p - string) >= len))
-            break;
-    }
-    return string;
-}
-
 // try go get a variable child from a path by walking its children
 // while there are parts, search children for the remaining
 bool getDirectPathVariable(SBFrame frame, const char* expression, SBValue* foundvar, SBValue& parent, int depth) {

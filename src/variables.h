@@ -24,7 +24,6 @@ const char* getName(SBValue& var);
 char* strfind(char* string, const char* find, int way = 1, const char* except = NULL);
 bool getDirectPathVariable(SBFrame frame, const char* expression, SBValue* foundvar, SBValue& parent, int depth);
 char* castexpression(SBFrame frame, const char* expression, char* newexpression, size_t expressionsize);
-char* strup(char* string, int len);
 
 SBValue getVariable(SBFrame frame, const char* expression, bool tryDirect = true);
 int updateVarState(SBValue var, int depth);
