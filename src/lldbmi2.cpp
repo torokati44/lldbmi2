@@ -445,8 +445,8 @@ void Lldbmi2::handleBreakpointCommand(CDT_COMMAND& cc, int nextarg) {
         breakpoint.SetEnabled(isenabled);
         if ((breakpoint.GetNumLocations() > 0) || ispending) {
             breakpoint.SetOneShot(isoneshot);
-            char* breakpointdesc = formatBreakpoint(breakpoint, this);
-            cdtprintf("%d^done,bkpt=%s\n(gdb)\n", cc.sequence, breakpointdesc);
+            std::string breakpointdesc = formatBreakpoint(breakpoint, this);
+            cdtprintf("%d^done,bkpt=%s\n(gdb)\n", cc.sequence, breakpointdesc.c_str());
         } else {
             target.BreakpointDelete(breakpoint.GetID());
             cdtprintf("^error,msg=\"could not find %s\"\n(gdb) \n", path);
@@ -2227,8 +2227,8 @@ void Lldbmi2::onStopped()
                 SBBreakpoint breakpoint = target.FindBreakpointByID(bpid);
                 if (breakpoint.IsOneShot())
                     dispose = "del";
-                char* breakpointdesc = formatBreakpoint(breakpoint, this);
-                cdtprintf("=breakpoint-modified,bkpt=%s\n", breakpointdesc);
+                std::string breakpointdesc = formatBreakpoint(breakpoint, this);
+                cdtprintf("=breakpoint-modified,bkpt=%s\n", breakpointdesc.c_str());
                 snprintf(reasondesc, sizeof(reasondesc), "reason=\"breakpoint-hit\",disp=\"%s\",bkptno=\"%d\",",
                          dispose, bpid);
             } else

@@ -1,4 +1,4 @@
-
+#include <format>
 #include "lldbmi2.h"
 #include "log.h"
 #include "frames.h"
@@ -20,14 +20,8 @@ int getNumFrames(SBThread thread) {
 //     "/project_path/test_hello_c/Sources/tests.cpp:33"}
 
 // format a breakpoint description into a GDB string
-char* formatBreakpoint(SBBreakpoint breakpoint, Lldbmi2* pstate) {
-    static StringB breakpointdescB(LINE_MAX);
-    breakpointdescB.clear();
-    return formatBreakpoint(breakpointdescB, breakpoint, pstate);
-}
-
-char* formatBreakpoint(StringB& breakpointdescB, SBBreakpoint breakpoint, Lldbmi2* pstate) {
-    logprintf(LOG_TRACE, "formatBreakpoint (0x%x, 0x%x, 0x%x)\n", &breakpointdescB, &breakpoint, pstate);
+std::string formatBreakpoint(SBBreakpoint breakpoint, Lldbmi2* pstate) {
+    logprintf(LOG_TRACE, "formatBreakpoint (0x%x, 0x%x)\n", &breakpoint, pstate);
     // 18^done,bkpt={number="1",type="breakpoint",disp="keep",enabled="y",addr="0x00000001000/00f58",
     //  func="main",file="../Sources/tests.cpp",fullname="/pro/runtime-EclipseApplication/tests/Sources/tests.cpp",
     //  line="17",thread-groups=["i1"],times="0",original-location="/pro/runtime-EclipseApplication/tests/Sources/tests.cpp:17"}
@@ -46,12 +40,11 @@ char* formatBreakpoint(StringB& breakpointdescB, SBBreakpoint breakpoint, Lldbmi
     const char* dispose = (breakpoint.IsOneShot()) ? "del" : "keep";
     const char* originallocation = "";
     //	originallocation,dispose = breakpoints[bpid]
-    breakpointdescB.catsprintf("{number=\"%d\",type=\"breakpoint\",disp=\"%s\",enabled=\"y\",addr=\"%p\","
-                               "func=\"%s\",file=\"%s\",fullname=\"%s\",line=\"%d\","
-                               "thread-groups=[\"%s\"],times=\"0\",original-location=\"%s\"}",
-                               bpid, dispose, file_addr, func_name, filename, filepath, line, pstate->threadgroup,
-                               originallocation);
-    return breakpointdescB.c_str();
+    return std::format(
+        R"({{number="{0}",type="breakpoint",disp="{1}",enabled="y",addr="{2}","
+        "func="{3}",file="{4}",fullname="{5}",line="{6}","
+        "thread-groups=["{7}"],times="0",original-location="{8}"}})",
+        bpid, dispose, file_addr, func_name, filename, filepath, line, pstate->threadgroup, originallocation);
 }
 
 // format a frame description into a GDB string
