@@ -14,6 +14,10 @@ int getNumFrames(SBThread thread) {
     return numframes;
 }
 
+static const char *nulltoempty(const char *str) {
+    return str ? str : "";
+}
+
 // Should make breakpoint pending if invalid
 // 017,435 29^done,bkpt={number="5",type="breakpoint",disp="keep",enabled="y",addr="<PENDING>",pending=
 //     "/project_path/test_hello_c/Sources/tests.cpp:33",times="0",original-location=
@@ -30,10 +34,10 @@ std::string formatBreakpoint(SBBreakpoint breakpoint, Lldbmi2* pstate) {
     SBAddress addr = location.GetAddress();
     addr_t file_addr = addr.GetFileAddress();
     SBFunction function = addr.GetFunction();
-    const char* func_name = function.GetName();
+    const char* func_name = nulltoempty(function.GetName());
     SBLineEntry line_entry = addr.GetLineEntry();
     SBFileSpec filespec = line_entry.GetFileSpec();
-    const char* filename = filespec.GetFilename();
+    const char* filename = nulltoempty(filespec.GetFilename());
     char filepath[PATH_MAX];
     snprintf(filepath, sizeof(filepath), "%s/%s", filespec.GetDirectory(), filename);
     uint32_t line = line_entry.GetLine();
