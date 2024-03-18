@@ -104,7 +104,7 @@ public:
     char envs[BIG_LINE_MAX];
     char* envspointer;
     char project_loc[PATH_MAX];
-    StringB cdtbufferB;
+    std::string cdtbufferB;
     char cdtptyname[NAME_MAX];
     char logfilename[PATH_MAX];
     const char* gdbPrompt;

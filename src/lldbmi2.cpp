@@ -125,8 +125,6 @@ int main(int argc, char** argv, char** envp) {
     gpstate->gdbPrompt = "GNU gdb (GDB) 7.12.1";
     snprintf(gpstate->lldbmi2Prompt, NAME_MAX, "lldbmi2 version %s", LLDBMI2_VERSION);
 
-    gpstate->cdtbufferB.grow(BIG_LINE_MAX);
-
     limits.frames_max = FRAMES_MAX;
     limits.children_max = CHILDREN_MAX;
     limits.walk_depth_max = WALK_DEPTH_MAX;
@@ -325,8 +323,8 @@ int main(int argc, char** argv, char** envp) {
                 long chars = read (gpstate->cdtptyfd, consoleLine, sizeof(consoleLine)-1);
                 logprintf (LOG_TRACE, "cdt pty read out %d chars\n", chars);
                 if (chars>0) {
-                    logprintf (LOG_PROG_OUT, "cdt pty read %d chars: '%s'\n", chars, consoleLine);
                     consoleLine[chars] = '\0';
+                    logprintf (LOG_PROG_OUT, "cdt pty read %d chars: '%s'\n", chars, consoleLine);
 
                 while (gpstate->fromCDT (consoleLine,sizeof(consoleLine)) == MORE_DATA)
                     consoleLine[0] = '\0';
@@ -1378,26 +1376,24 @@ void Lldbmi2::handleDataCommand(CDT_COMMAND& cc, int nextarg) {
 int Lldbmi2::fromCDT(const char* commandLine, int linesize) // from cdt
 {
     logprintf(LOG_NONE, "fromCDT (0x%x, ..., %d)\n", this, linesize);
-    StringB cdtcommandB(BIG_LINE_MAX);
+    std::string cdtcommandB;
     CDT_COMMAND cc;
 
     int dataflag = MORE_DATA;
     logdata(LOG_CDT_IN | LOG_RAW, commandLine, strlen(commandLine));
     // put CDT input in the big CDT buffer
     cdtbufferB.append(commandLine);
-    char* endofline = strstr(cdtbufferB.c_str(), "\n");
-    if (endofline != NULL) {
+    ssize_t endofline = cdtbufferB.find('\n');
+    if (endofline != std::string::npos) {
         // multiple command in cdtbuffer. take the first one and shift the buffer
-        int commandsize = endofline + 1 - cdtbufferB.c_str();
-        cdtcommandB.copy(cdtbufferB.c_str(), commandsize);
-        cdtbufferB.clear(commandsize); // shift buffered data
+        int commandsize = endofline + 1;
+        cdtcommandB = cdtbufferB.substr(0, commandsize-1);
+        cdtbufferB = cdtbufferB.substr(commandsize); // shift buffered data
         if (cdtbufferB.size() == 0)
             dataflag = WAIT_DATA;
         // remove trailing \r and \n
-        endofline = strstr(cdtcommandB.c_str(), "\n");
-        while (endofline > cdtcommandB.c_str() && (*(endofline - 1) == '\n' || *(endofline - 1) == '\r'))
-            --endofline;
-        cdtcommandB.clear(BIG_LIMIT, endofline - cdtcommandB.c_str());
+        endofline = cdtcommandB.find('\n');
+        cdtcommandB = cdtcommandB.substr(endofline+1);
         logdata(LOG_CDT_IN, cdtcommandB.c_str(), cdtcommandB.size());
     } else
         return WAIT_DATA;
