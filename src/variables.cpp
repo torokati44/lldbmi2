@@ -3,6 +3,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <string>
+#include <format>
 
 #include "log.h"
 #include "variables.h"
@@ -456,9 +457,7 @@ char* formatChangedList(StringB& changedescB, SBValue var, bool& separatorvisibl
     int varnumchildren = var.GetNumChildren();
     const char* separator = separatorvisible ? "," : "";
     const char* varinscope = var.IsInScope() ? "true" : "false";
-    static StringB vardescB(VALUE_MAX);
-    vardescB.clear();                         // clear previous buffer content
-    formatValue(vardescB, var, FULL_SUMMARY); // was NO_SUMMARY
+    std::string vardescB = formatValue(var, FULL_SUMMARY); // was NO_SUMMARY
     changedescB.catsprintf("%s{name=\"%s\",value=\"%s\",in_scope=\"%s\",type_changed=\"false\",has_more=\"0\"}",
                            separator, expressionpathdescB.c_str(), vardescB.c_str(), varinscope);
     separatorvisible = true;
@@ -500,9 +499,7 @@ char* formatVariables(StringB& varsdescB, SBValueList varslist) {
             // basic type valid only when type class is Builtin
             if ((vartype.GetBasicType() != eBasicTypeInvalid && varvalue != NULL) || true) {
                 //	updateVarState (var, limits.change_depth_max);
-                static StringB vardescB(BIG_VALUE_MAX);
-                vardescB.clear(); // clear previous buffer content
-                formatValue(vardescB, var, FULL_SUMMARY);
+                std::string vardescB = formatValue(var, FULL_SUMMARY);
                 varsdescB.catsprintf("%s{name=\"%s\",value=\"%s\"}", separator, getName(var), vardescB.c_str());
                 separator = ",";
             } else
@@ -617,13 +614,6 @@ char* formatSummary(StringB& summarydescB, SBValue var) {
     return NULL;
 }
 
-// format a variable description into a GDB string
-char* formatValue(SBValue var, VariableDetails details) {
-    static StringB vardescB(VALUE_MAX);
-    vardescB.clear();
-    return formatValue(vardescB, var, details);
-}
-
 std::string formatDesc(SBValue var) {
     std::string s;
     s += "{ ";
@@ -705,14 +695,15 @@ std::string formatStruct(SBValue var) {
     return (s.c_str());
 }
 
-char* formatValue(StringB& vardescB, SBValue var, VariableDetails details) {
-    logprintf(LOG_TRACE, "formatValue (0x%x, 0x%x, %x)\n", &vardescB, &var, details);
+// format a variable description into a GDB string
+std::string formatValue(SBValue var, VariableDetails details) {
+    logprintf(LOG_TRACE, "formatValue (0x%x, %x)\n", &var, details);
     //	value = "HFG\123klj\b"
     //	value={2,5,7,0 <repeat 5 times>, 7}
     //	value = {{a=1,b=0x33},...{a=1,b=2}}
-    vardescB.clear();
+    
     if (var.GetError().Fail()) // invalid value. show nothing
-        return vardescB.c_str();
+        return "";
     SBType vartype = var.GetType();
     logprintf(LOG_DEBUG,
               "formatValue: Var=%-5s: children=%-2d, typeclass=%-10s, basictype=%-10s, bytesize=%-2d, Pointee: "
@@ -737,16 +728,16 @@ char* formatValue(StringB& vardescB, SBValue var, VariableDetails details) {
     if (varvalue != NULL) { // basic types and arrays
         if (vartype.IsPointerType() || vartype.IsReferenceType() || vartype.IsArrayType()) {
             if (summarydescB.size() > 0 && details == FULL_SUMMARY)
-                vardescB.catsprintf("%s \\\"%s\\\"", varvalue, summarydescB.c_str());
+                return std::format("{} \\\"{}\\\"", varvalue, summarydescB.c_str());
             else
-                vardescB.catsprintf("%s", varvalue);
+                return varvalue;
         } else // basic type
-            vardescB.append(varvalue);
+            return varvalue;
     }
     // classes and structures
     else if (summarydescB.size() > 0 && details == FULL_SUMMARY)
-        vardescB.catsprintf("%p \\\"%s\\\"", varaddr, summarydescB.c_str());
+        return std::format("{:#016x} \\\"{}\\\"", varaddr, summarydescB.c_str());
     else
-        vardescB.catsprintf("%p", varaddr);
-    return vardescB.c_str();
+        return std::format("{:#016x}", varaddr);
+    return "";
 }

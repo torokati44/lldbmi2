@@ -569,20 +569,17 @@ void Lldbmi2::handleVariableCommand(CDT_COMMAND& cc, int nextarg) {
                         updateVarState(var, limits.change_depth_max);
                         int varnumchildren = var.GetNumChildren();
                         SBType vartype = var.GetType();
-                        static StringB vardescB(VALUE_MAX);
-                        vardescB.clear();
-                        formatValue(vardescB, var, FULL_SUMMARY); // was NO_SUMMARY
-                        char* vardesc = vardescB.c_str();
+                        std::string vardescB = formatValue(var, FULL_SUMMARY); // was NO_SUMMARY
                         if (var.IsDynamic() || var.IsSynthetic() || var.IsSyntheticChildrenGenerated()) {
                             cdtprintf ("%d^done,name=\"%s\",numchild=\"0\",value=\"%s\","
                                 "type=\"%s\",thread-id=\"%d\",dynamic=\"1\",has_more=\"1\"\n(gdb)\n",
-                                cc.sequence, varName.c_str(), vardesc,
+                                cc.sequence, varName.c_str(), vardescB.c_str(),
                                 vartype.GetDisplayTypeName(), thread.GetIndexID());
                         }
                         else {
                             cdtprintf ("%d^done,name=\"%s\",numchild=\"%d\",value=\"%s\","
                                 "type=\"%s\",thread-id=\"%d\",has_more=\"0\"\n(gdb)\n",
-                                cc.sequence, varName.c_str(), varnumchildren, vardesc,
+                                cc.sequence, varName.c_str(), varnumchildren, vardescB.c_str(),
                                 vartype.GetDisplayTypeName(), thread.GetIndexID());
                         }
                     } else
@@ -728,8 +725,8 @@ void Lldbmi2::handleVariableCommand(CDT_COMMAND& cc, int nextarg) {
                 if (frame.IsValid()) {
                     SBValue var = sessionVariables[expression];
                     if (var.IsValid()) {
-                        char* vardesc = formatValue(var, FULL_SUMMARY);
-                        cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc);
+                        std::string vardesc = formatValue(var, FULL_SUMMARY);
+                        cdtprintf("%d^done,value=\"%s\"\n(gdb)\n", cc.sequence, vardesc.c_str());
                     } else
                         cdtprintf("%d^error\n(gdb)\n", cc.sequence);
                 } else
@@ -770,8 +767,8 @@ void Lldbmi2::handleVariableCommand(CDT_COMMAND& cc, int nextarg) {
                 SBValue var = getVariable(frame, expression);
                 if (var.IsValid() && var.GetError().Success()) {
                     var.SetFormat(formatcode);
-                    char* vardesc = formatValue(var, FULL_SUMMARY); // was NO_SUMMARY
-                    cdtprintf("%d^done,format=\"%s\",value=\"%s\"\n(gdb)\n", cc.sequence, format, vardesc);
+                    std::string vardesc = formatValue(var, FULL_SUMMARY); // was NO_SUMMARY
+                    cdtprintf("%d^done,format=\"%s\",value=\"%s\"\n(gdb)\n", cc.sequence, format, vardesc.c_str());
                 } else
                     cdtprintf("%d^error\n(gdb)\n", cc.sequence);
             } else

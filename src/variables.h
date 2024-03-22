@@ -35,7 +35,7 @@ char* formatChildrenList(StringB& childrendescB, SBValue var, char* expression, 
 char* formatChangedList(StringB& changedescB, SBValue var, bool& separatorvisible, int depth);
 char* formatVariables(StringB& varsdescB, SBValueList varslist);
 char* formatSummary(StringB& summarydescB, SBValue var);
-char* formatValue(StringB& varsdescB, SBValue var, VariableDetails details);
+std::string formatValue(SBValue var, VariableDetails details);
 std::string formatDesc(SBValue var);
 std::string formatStruct(SBValue var);
 
@@ -44,6 +44,5 @@ char* formatChildrenList(SBValue var, char* expression, int threadindexid, int& 
 char* formatChangedList(SBValue var, bool& separatorvisible, int depth);
 char* formatVariables(SBValueList varslist);
 char* formatSummary(SBValue var);
-char* formatValue(SBValue var, VariableDetails details);
 
 #endif // VARIABLES_H
